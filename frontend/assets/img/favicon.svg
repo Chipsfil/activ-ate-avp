@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <defs>
+    <mask id="favR" maskUnits="userSpaceOnUse" x="0" y="0" width="120" height="120">
+      <rect width="120" height="120" fill="#fff"/>
+      <path d="M27 90 Q62 73 112 62" fill="none" stroke="#000" stroke-width="16"/>
+    </mask>
+    <clipPath id="favC"><path d="M0 0 H66.9 L129.1 120 H0 Z"/></clipPath>
+    <mask id="favB" maskUnits="userSpaceOnUse" x="0" y="0" width="120" height="120">
+      <rect width="120" height="120" fill="#fff"/>
+      <path d="M60 8 L6 112 L33 112 L60 60 Z" fill="#000" stroke="#000" stroke-width="6" stroke-linejoin="round"/>
+    </mask>
+  </defs>
+  <rect width="120" height="120" rx="28" fill="#0B132B"/>
+  <g transform="translate(10, 10) scale(0.833)">
+    <path d="M60 8 L114 112 L87 112 L60 60 Z" fill="#0066FF" mask="url(#favR)"/>
+    <path d="M27 90 Q62 73 112 62" fill="none" stroke="#FF1744" stroke-width="10" stroke-linecap="round" mask="url(#favB)" clip-path="url(#favC)"/>
+    <path d="M60 8 L6 112 L33 112 L60 60 Z" fill="#FF1744"/>
+    <path d="M60 8 L60 60" stroke="#FFFFFF" stroke-opacity=".8" stroke-width="1"/>
+  </g>
+</svg>

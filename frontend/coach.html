@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Coach · Activ-Ate</title>
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="assets/img/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+  <link rel="manifest" href="assets/site.webmanifest">
+  <meta name="theme-color" content="#0B132B">
+  <link rel="preload" href="assets/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+<a class="sr-only" href="#main">Skip to content</a>
+<div class="app">
+  <aside id="sidebar" class="sidebar"></aside>
+  <main class="main" id="main">
+
+    <div class="page-header"><div><h1>AI Coach</h1><p class="lead">Ask anything about training, food or recovery – answers are based on your own data.</p></div></div>
+    <div class="cols">
+      <section class="card card--flush col-main" style="flex:3 1 480px">
+        <div class="row" style="padding:18px 22px;border-bottom:1px solid var(--line-2)">
+          <span class="ai-badge" style="width:40px;height:40px;border-radius:12px;background:var(--side);color:var(--mint)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M6 6l2 2M16 16l2 2M6 18l2-2M16 8l2-2"/></svg></span>
+          <div class="grow"><b>Activ-Ate Coach</b><div class="small" style="color:var(--brand);font-weight:600">Uses your goals, workouts &amp; meals</div></div>
+          <button type="button" class="btn btn--small" id="new-chat">New chat</button>
+        </div>
+        <div class="chat-log" id="chat" role="log" aria-live="polite" aria-label="Conversation"></div>
+        <div class="chips" id="chips" style="padding:14px 22px 4px"></div>
+        <form class="row" id="chat-form" style="padding:10px 22px 8px;flex-wrap:nowrap" novalidate>
+          <label for="chat-input" class="sr-only">Message to your coach</label>
+          <input class="input" id="chat-input" name="text" maxlength="1000" placeholder="Ask your coach… e.g. What should I eat before my run?" autocomplete="off">
+          <button class="btn btn--primary btn--icon" type="submit" aria-label="Send message"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+        </form>
+        <p class="small muted" style="padding:0 22px 16px">The coach gives general fitness and nutrition guidance, not medical advice. For pain, injuries or health conditions, please see a professional.</p>
+      </section>
+      <div class="col-side" style="flex:1.4 1 280px">
+        <section class="card"><h2>What your coach knows</h2><div id="context"><div class="skeleton" style="height:200px"></div></div><a href="goals.html" class="small" style="font-weight:600">Manage goals</a></section>
+        <section class="card card--dark"><h2>Quick actions</h2><div class="stack" id="actions" style="gap:8px"></div></section>
+      </div>
+    </div>
+  </main>
+</div>
+<script type="module" src="assets/js/pages/coach.js"></script>
+</body>
+</html>

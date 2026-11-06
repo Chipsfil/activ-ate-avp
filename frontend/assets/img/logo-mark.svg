@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Activ-Ate">
+  <defs>
+    <mask id="gmR" maskUnits="userSpaceOnUse" x="0" y="0" width="120" height="120">
+      <rect width="120" height="120" fill="#fff"/>
+      <path d="M27 90 Q62 73 112 62" fill="none" stroke="#000" stroke-width="16"/>
+    </mask>
+    <clipPath id="gc"><path d="M0 0 H66.9 L129.1 120 H0 Z"/></clipPath>
+    <mask id="gmB" maskUnits="userSpaceOnUse" x="0" y="0" width="120" height="120">
+      <rect width="120" height="120" fill="#fff"/>
+      <path d="M60 8 L6 112 L33 112 L60 60 Z" fill="#000" stroke="#000" stroke-width="6" stroke-linejoin="round"/>
+    </mask>
+  </defs>
+  <!-- Right athletic leg: solid electric blue -->
+  <path d="M60 8 L114 112 L87 112 L60 60 Z" fill="#0066FF" mask="url(#gmR)"/>
+  <!-- Energy motion bar: solid laser red -->
+  <path d="M27 90 Q62 73 112 62" fill="none" stroke="#FF1744" stroke-width="10" stroke-linecap="round" mask="url(#gmB)" clip-path="url(#gc)"/>
+  <!-- Left athletic leg: solid laser red -->
+  <path d="M60 8 L6 112 L33 112 L60 60 Z" fill="#FF1744"/>
+  <!-- Sleek spine division -->
+  <path d="M60 8 L60 60" stroke="#FFFFFF" stroke-opacity=".7" stroke-width="1"/>
+</svg>

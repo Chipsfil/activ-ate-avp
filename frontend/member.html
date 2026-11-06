@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Network member · Activ-Ate</title>
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="assets/img/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+  <link rel="manifest" href="assets/site.webmanifest">
+  <meta name="theme-color" content="#0B132B">
+  <link rel="preload" href="assets/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+<a class="sr-only" href="#main">Skip to content</a>
+<div class="app">
+  <aside id="sidebar" class="sidebar"></aside>
+  <main class="main" id="main">
+
+    <a href="community.html" class="row" style="gap:6px;font-size:14px;font-weight:600;text-decoration:none;min-height:44px;align-self:flex-start"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>Community</a>
+    <div class="page-header" id="member-head"><div class="skeleton" style="height:64px;width:320px"></div></div>
+    <section class="card" id="member-summary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))"><div class="skeleton" style="height:50px"></div></section>
+    <div class="row-between">
+      <div class="seg" role="tablist" aria-label="Select habit" id="habits">
+        <button type="button" role="tab" data-habit="exercise" aria-selected="true">Exercise minutes</button>
+        <button type="button" role="tab" data-habit="sleep" aria-selected="false">Sleep</button>
+        <button type="button" role="tab" data-habit="water" aria-selected="false">Water</button>
+      </div>
+      <div class="seg seg--light" role="tablist" aria-label="Time period" id="periods">
+        <button type="button" role="tab" data-period="week" aria-selected="true">Week</button>
+        <button type="button" role="tab" data-period="month" aria-selected="false">Month</button>
+        <button type="button" role="tab" data-period="all" aria-selected="false">All time</button>
+      </div>
+    </div>
+    <div class="cols">
+      <section class="card card--flush col-main" style="flex:3 1 420px">
+        <div class="stack" style="padding:20px 24px 14px"><h2 id="log-title">Recent activity</h2><span class="info small" id="their-target" style="align-self:flex-start"></span></div>
+        <div class="table-wrap"><div class="table" id="log" style="min-width:420px;--cols:1fr 1fr 1fr"><div class="skeleton" style="height:240px"></div></div></div>
+      </section>
+      <div class="col-side">
+        <section class="card"><h2 id="compare-title">Direct comparison</h2>
+          <div class="form-grid--2"><div class="info small" style="background:var(--orange-tint);border-color:#F8D9C4;color:#7A3309"><span id="t-them-label">Their daily target</span><br><b id="t-them"></b></div><div class="info small"><span>Your target</span><br><b id="t-me"></b></div></div>
+          <div class="compare" id="compare"></div>
+          <div class="compare-labels"><span id="name-them">Them</span><span>Me</span></div>
+          <p class="small muted" style="text-align:center" id="compare-text"></p>
+        </section>
+        <section class="card" id="cheer-card"></section>
+      </div>
+    </div>
+  </main>
+</div>
+<script type="module" src="assets/js/pages/member.js"></script>
+</body>
+</html>

@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nutrition · Activ-Ate</title>
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="assets/img/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+  <link rel="manifest" href="assets/site.webmanifest">
+  <meta name="theme-color" content="#0B132B">
+  <link rel="preload" href="assets/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+<a class="sr-only" href="#main">Skip to content</a>
+<div class="app">
+  <aside id="sidebar" class="sidebar"></aside>
+  <main class="main" id="main">
+
+    <div class="page-header">
+      <div><h1>Nutrition</h1><p class="lead" id="date-lead">&nbsp;</p></div>
+      <div class="row" role="group" aria-label="Choose day">
+        <button class="btn btn--icon" type="button" id="prev-day" aria-label="Previous day"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <input class="input" type="date" id="day" aria-label="Day" style="width:auto">
+        <button class="btn btn--icon" type="button" id="next-day" aria-label="Next day"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+      </div>
+    </div>
+    <section class="card" aria-label="Daily totals"><div class="kpis" id="totals" style="gap:24px"><div class="skeleton" style="height:90px"></div><div class="skeleton" style="height:90px"></div><div class="skeleton" style="height:90px"></div><div class="skeleton" style="height:90px"></div></div></section>
+    <div class="cols">
+      <div class="col-main">
+        <section class="card">
+          <div class="card-head">
+            <h2>Log a meal</h2>
+            <div class="tabs-inline" role="tablist">
+              <button type="button" role="tab" id="tab-ai" aria-selected="true" aria-controls="panel-ai">Describe with AI</button>
+              <button type="button" role="tab" id="tab-manual" aria-selected="false" aria-controls="panel-manual">Enter manually</button>
+            </div>
+          </div>
+          <div class="chips" id="meal-types" role="group" aria-label="Meal type">
+            <button type="button" class="chip" data-type="breakfast" aria-pressed="false">Breakfast</button>
+            <button type="button" class="chip" data-type="lunch" aria-pressed="false">Lunch</button>
+            <button type="button" class="chip" data-type="dinner" aria-pressed="false">Dinner</button>
+            <button type="button" class="chip" data-type="snack" aria-pressed="false">Snack</button>
+          </div>
+          <div id="panel-ai" role="tabpanel" aria-labelledby="tab-ai">
+            <form id="describe-form" class="stack" novalidate>
+              <div class="form-error" role="alert" hidden></div>
+              <div class="field"><label for="meal-text">What did you eat?</label>
+                <textarea class="input" id="meal-text" name="text" rows="3" maxlength="500" placeholder="e.g. 100 g toast, 50 g cheese, 1 tomato, 150 g chicken, 10 g butter"></textarea>
+                <span class="hint">Add amounts (grams or pieces) for a more accurate estimate.</span></div>
+              <div class="row-between">
+                <button type="button" class="btn btn--link" id="use-example">Use example meal</button>
+                <button type="submit" class="btn btn--primary"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M6 6l2 2M16 16l2 2M6 18l2-2M16 8l2-2"/></svg>Estimate with AI</button>
+              </div>
+            </form>
+            <form id="review-form" class="stack" novalidate hidden>
+              <div class="form-error" role="alert" hidden></div>
+              <div class="info" id="review-text"></div>
+              <div class="table-wrap" style="border:1px solid var(--line);border-radius:12px"><div class="table" id="review-items" style="min-width:520px;--cols:1.6fr 1.2fr .7fr .8fr .8fr .7fr"></div></div>
+              <div class="field"><span>Totals – check and adjust if needed</span>
+                <div class="form-grid--4">
+                  <label class="field small">Calories (kcal)<input class="input" name="kcal" type="number" min="0" inputmode="numeric"></label>
+                  <label class="field small">Protein (g)<input class="input" name="protein_g" type="number" min="0" step="0.1" inputmode="decimal"></label>
+                  <label class="field small">Carbs (g)<input class="input" name="carbs_g" type="number" min="0" step="0.1" inputmode="decimal"></label>
+                  <label class="field small">Fat (g)<input class="input" name="fat_g" type="number" min="0" step="0.1" inputmode="decimal"></label>
+                </div>
+                <span class="hint">AI estimates can be off by 10–20 %. Your edits are saved instead of the estimate.</span>
+              </div>
+              <div class="row" style="justify-content:flex-end"><button type="button" class="btn" id="edit-description">Edit description</button><button type="submit" class="btn btn--primary">Confirm &amp; save</button></div>
+            </form>
+          </div>
+          <div id="panel-manual" role="tabpanel" aria-labelledby="tab-manual" hidden>
+            <form id="manual-form" class="stack" novalidate>
+              <div class="form-error" role="alert" hidden></div>
+              <div class="field"><label for="m-desc">Meal name</label><input class="input" id="m-desc" name="description" maxlength="200" placeholder="e.g. Salmon with potatoes"></div>
+              <div class="form-grid--4">
+                <label class="field small">Calories (kcal)<input class="input" name="kcal" type="number" min="0" inputmode="numeric" placeholder="0"></label>
+                <label class="field small">Protein (g)<input class="input" name="protein_g" type="number" min="0" step="0.1" placeholder="0"></label>
+                <label class="field small">Carbs (g)<input class="input" name="carbs_g" type="number" min="0" step="0.1" placeholder="0"></label>
+                <label class="field small">Fat (g)<input class="input" name="fat_g" type="number" min="0" step="0.1" placeholder="0"></label>
+              </div>
+              <div class="row" style="justify-content:flex-end"><button type="submit" class="btn btn--primary">Save meal</button></div>
+            </form>
+          </div>
+        </section>
+        <section class="card" style="gap:4px"><h2 style="margin-bottom:8px" id="meals-title">Meals</h2><div id="meals"><div class="skeleton" style="height:160px"></div></div></section>
+      </div>
+      <div class="col-side">
+        <section class="card card--dark" aria-live="polite">
+          <div class="row"><span class="ai-badge"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M6 6l2 2M16 16l2 2M6 18l2-2M16 8l2-2"/></svg></span><h2>AI nutrition advice</h2></div>
+          <div id="ai-nutrition" class="stack"><div class="row muted"><span class="spinner"></span>Analysing your last 7 days…</div></div>
+        </section>
+        <section class="card">
+          <h2>Ask about your nutrition</h2>
+          <div class="stack" id="questions" style="gap:8px"></div>
+          <form class="row" id="ask-form" style="flex-wrap:nowrap" novalidate>
+            <label for="ask" class="sr-only">Your question</label>
+            <input class="input" id="ask" name="text" maxlength="1000" placeholder="Ask your own question…">
+            <button class="btn btn--primary btn--icon" type="submit" aria-label="Send question"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+          </form>
+          <div id="answer" class="stack" aria-live="polite"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+</div>
+<script type="module" src="assets/js/pages/nutrition.js"></script>
+</body>
+</html>

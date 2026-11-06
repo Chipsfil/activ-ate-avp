@@ -1,0 +1,13 @@
+{
+  "name": "Activ-Ate",
+  "short_name": "Activ-Ate",
+  "description": "Move more. Eat smarter. Do it together.",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#F6F3EC",
+  "theme_color": "#0E1814",
+  "icons": [
+    { "src": "img/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "img/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

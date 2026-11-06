@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Goals · Activ-Ate</title>
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="assets/img/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+  <link rel="manifest" href="assets/site.webmanifest">
+  <meta name="theme-color" content="#0B132B">
+  <link rel="preload" href="assets/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+<a class="sr-only" href="#main">Skip to content</a>
+<div class="app">
+  <aside id="sidebar" class="sidebar"></aside>
+  <main class="main" id="main">
+
+    <div class="page-header">
+      <div><h1>Goals</h1><p class="lead">Adjust what you want to achieve – your AI plans update automatically.</p></div>
+      <button class="btn btn--primary" type="button" id="save" disabled>Save changes</button>
+    </div>
+    <div class="cols" id="goals-root">
+      <div class="col-main">
+        <section class="card"><h2>Main goals</h2><div class="form-grid" id="main-goals"></div></section>
+        <section class="card"><div class="card-head"><h2>Sports you do</h2></div>
+          <div class="field"><label for="sport-add" class="sr-only">Add a sport</label><div class="combo"><input class="input" id="sport-add" placeholder="Type to add a sport…"></div></div>
+          <div class="chips" id="sport-chips"></div></section>
+        <section class="card"><div class="card-head"><h2>Weekly activity goals</h2><span class="small" style="font-weight:600;color:var(--brand)" id="weekly-total"></span></div>
+          <div class="stack" id="acts" style="gap:8px"><div class="skeleton" style="height:120px"></div></div>
+          <div class="row" style="align-items:flex-end;padding-top:6px">
+            <div class="field" style="flex:2 1 180px"><label for="new-sport">Add sport</label><div class="combo"><input class="input" id="new-sport" placeholder="Type a sport"></div></div>
+            <div class="field" style="flex:1 1 100px"><label for="new-mins">Minutes</label><input class="input" id="new-mins" type="number" min="5" max="300" value="45"></div>
+            <div class="field" style="flex:1 1 100px"><label for="new-times">Times / week</label><input class="input" id="new-times" type="number" min="1" max="7" value="1"></div>
+            <button type="button" class="btn" id="add-act" style="border-color:var(--brand);color:var(--brand)">+ Add</button>
+          </div>
+        </section>
+        <section class="card"><h2>Daily nutrition &amp; recovery goals</h2><div class="stack" id="nuts" style="gap:8px"></div><div class="chips" id="nut-add"></div></section>
+      </div>
+      <div class="col-side">
+        <section class="card"><h2>Weight goal</h2>
+          <div class="form-grid--2">
+            <label class="field">Current (kg)<input class="input" id="cur-kg" name="current_weight_kg" type="number" step="0.1" min="30" max="300"></label>
+            <label class="field">Target (kg)<input class="input" id="target-kg" name="target_kg" type="number" step="0.1" min="30" max="300"></label>
+          </div>
+          <label class="field">Reach by<input class="input" id="target-date" name="target_date" type="date"></label>
+          <div class="stack" style="gap:8px"><div class="row-between small muted"><span id="w-start"></span><b id="w-phrase" style="color:var(--ink)"></b></div><div id="w-track"></div><span class="small muted" id="w-rate"></span></div>
+        </section>
+        <section class="card card--dark" aria-live="polite"><div class="row"><span class="ai-badge"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M6 6l2 2M16 16l2 2M6 18l2-2M16 8l2-2"/></svg></span><h2>Goal check</h2></div><div class="stack" id="checks"></div></section>
+        <section class="card"><h2>Shared with your network</h2><p class="small muted">Shared automatically so your network can compare and cheer: exercise minutes, workouts (sport &amp; duration), streaks, sleep and water. Meals and body weight are never shared.</p></section>
+      </div>
+    </div>
+  </main>
+</div>
+<script type="module" src="assets/js/pages/goals.js"></script>
+</body>
+</html>

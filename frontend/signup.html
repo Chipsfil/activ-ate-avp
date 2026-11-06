@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign up · Activ-Ate</title>
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="assets/img/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+  <link rel="manifest" href="assets/site.webmanifest">
+  <meta name="theme-color" content="#0B132B">
+  <link rel="preload" href="assets/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" id="onboarding-logo" href="signin.html" aria-label="Log out and return to sign in" style="padding:0"><img class="brand-logo" src="assets/img/logo-mark.svg" alt="" width="40" height="40"><span class="brand-name">Activ<i>-</i>Ate</span></a>
+  <span class="small" style="color:var(--side-mute)" id="topbar-right">Already have an account? <a href="signin.html">Log in here</a></span>
+</header>
+
+<main class="onboard">
+  <div class="stack" style="gap:6px">
+    <span class="small" style="font-weight:600;color:var(--brand)" id="step-no">Step 1 of 3</span>
+    <h1 id="step-title">About you</h1>
+    <p class="muted" id="step-sub">Create your account and tell us a bit about yourself.</p>
+  </div>
+  <ol class="steps" id="stepper" aria-label="Progress">
+    <li>1. About you</li><li>2. Goals &amp; sports</li><li>3. Targets</li>
+  </ol>
+
+  <!-- STEP 1 ------------------------------------------------------------ -->
+  <form class="card" id="step-1" novalidate>
+    <div class="form-error" role="alert" hidden></div>
+    <div class="form-grid">
+      <div class="field"><label for="first_name">First name</label><input class="input" id="first_name" name="first_name" autocomplete="given-name" required></div>
+      <div class="field"><label for="last_name">Last name</label><input class="input" id="last_name" name="last_name" autocomplete="family-name" required></div>
+      <div class="field"><label for="username">Username</label><input class="input" id="username" name="username" autocomplete="username" required><span class="hint" id="username-status" aria-live="polite"></span></div>
+      <div class="field"><label for="email">Email</label><input class="input" id="email" name="email" type="email" autocomplete="email" required></div>
+      <div class="field"><label for="password">Password</label><input class="input" id="password" name="password" type="password" autocomplete="new-password" minlength="8" required><span class="hint">At least 8 characters</span></div>
+      <div class="field"><label for="password_confirm">Repeat password</label><input class="input" id="password_confirm" name="password_confirm" type="password" autocomplete="new-password" required></div>
+    </div>
+    <div style="height:1px;background:var(--line)"></div>
+    <fieldset class="field" style="border:0;padding:0;margin:0">
+      <legend style="margin-bottom:8px">Gender</legend>
+      <div class="chips" id="gender-group">
+        <button type="button" class="chip" data-gender="female" aria-pressed="false">Female</button>
+        <button type="button" class="chip" data-gender="male" aria-pressed="false">Male</button>
+        <button type="button" class="chip" data-gender="diverse" aria-pressed="false">Diverse</button>
+        <button type="button" class="chip" data-gender="unspecified" aria-pressed="false">Prefer not to say</button>
+      </div>
+      <input type="hidden" name="gender">
+    </fieldset>
+    <div class="form-grid">
+      <div class="field"><label for="date_of_birth">Date of birth</label><input class="input" id="date_of_birth" name="date_of_birth" type="date" required></div>
+      <div class="field"><label for="weight_kg">Body weight (kg)</label><input class="input" id="weight_kg" name="weight_kg" type="number" inputmode="decimal" min="30" max="300" step="0.1" required></div>
+      <div class="field"><label for="height_cm">Height (cm)</label><input class="input" id="height_cm" name="height_cm" type="number" inputmode="numeric" min="100" max="250" required></div>
+    </div>
+    <p class="small muted">Weight, height, age and your goal are used to estimate your calorie needs and to match you with a network of similar people. Your exact weight is never shown to others.</p>
+    <div class="row-between" style="border-top:1px solid var(--line-2);padding-top:16px">
+      <a href="signin.html" style="font-weight:600">Cancel</a>
+      <button class="btn btn--primary" type="submit">Continue</button>
+    </div>
+  </form>
+
+  <!-- STEP 2 ------------------------------------------------------------ -->
+  <form class="card" id="step-2" novalidate hidden>
+    <div class="form-error" role="alert" hidden></div>
+    <div class="stack">
+      <div><h2>Your main goals</h2><p class="muted small">Choose one or more.</p></div>
+      <div class="form-grid" id="goal-cards">
+        <button type="button" class="goal-card" data-goal="lose_weight" aria-pressed="false"><span class="t">Lose weight<span class="check"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M5 12l5 5L19 7"/></svg></span></span><span class="d">Calorie deficit, more activity, filling meals.</span></button>
+        <button type="button" class="goal-card" data-goal="gain_muscle" aria-pressed="false"><span class="t">Gain muscle<span class="check"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M5 12l5 5L19 7"/></svg></span></span><span class="d">Progressive strength training and enough protein.</span></button>
+        <button type="button" class="goal-card" data-goal="improve_stamina" aria-pressed="false"><span class="t">Improve stamina<span class="check"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M5 12l5 5L19 7"/></svg></span></span><span class="d">Build endurance with regular cardio sessions.</span></button>
+      </div>
+      <input type="hidden" name="goals">
+    </div>
+    <div class="stack">
+      <div><h2>Sports you do</h2><p class="muted small">Type to search – pick from the list or add your own sport. Add as many as you like.</p></div>
+      <div class="field">
+        <label for="sport-input" class="sr-only">Add a sport</label>
+        <div class="combo"><input class="input" id="sport-input" name="sports" placeholder="e.g. Running, Weightlifting, Padel…"></div>
+      </div>
+      <div class="chips" id="sport-chips" aria-live="polite"></div>
+    </div>
+    <div class="row-between" style="border-top:1px solid var(--line-2);padding-top:16px">
+      <span class="small muted">Account created ✓</span>
+      <button class="btn btn--primary" type="submit">Continue</button>
+    </div>
+  </form>
+
+  <!-- STEP 3 ------------------------------------------------------------ -->
+  <form class="card" id="step-3" novalidate hidden>
+    <div class="form-error" role="alert" hidden></div>
+    <div class="stack">
+      <div><h2>Activity goals</h2><p class="muted small">e.g. "Run for 20 min every day" or "Go to the gym for 1 hour 4 times a week".</p></div>
+      <div class="row" style="align-items:flex-end">
+        <div class="field" style="flex:2 1 200px"><label for="act-sport">Sport</label><div class="combo"><input class="input" id="act-sport" name="activity_goals" placeholder="Type a sport"></div></div>
+        <div class="field" style="flex:1 1 120px"><label for="act-mins">Minutes per session</label><input class="input" id="act-mins" type="number" min="5" max="300" value="30"></div>
+        <div class="field" style="flex:1 1 150px"><span>Times per week</span><div class="stepper" style="min-height:46px"><button type="button" id="times-down" aria-label="Fewer times">−</button><output id="act-times">3</output><button type="button" id="times-up" aria-label="More times">+</button></div></div>
+        <button type="button" class="btn btn--primary" id="add-act">Add goal</button>
+      </div>
+      <div class="chips" id="act-suggest"></div>
+      <div class="stack" id="act-list" style="gap:8px"></div>
+    </div>
+    <div style="height:1px;background:var(--line)"></div>
+    <div class="stack">
+      <div><h2>Nutrition goals</h2><p class="muted small" id="nut-hint">e.g. "Eat 200 g of protein every day". We pre-filled suggestions based on your profile.</p></div>
+      <div class="row" style="align-items:flex-end">
+        <div class="field" style="flex:2 1 180px"><label for="nut-kind">Nutrient</label>
+          <select class="input" id="nut-kind">
+            <option value="protein">Protein</option><option value="calories">Calories</option><option value="water">Water</option>
+            <option value="carbs">Carbohydrates</option><option value="fat">Fat</option><option value="fiber">Fiber</option><option value="sugar">Sugar (max.)</option>
+          </select></div>
+        <div class="field" style="flex:1 1 140px"><label for="nut-amount">Amount per day (<span id="nut-unit">g</span>)</label><input class="input" id="nut-amount" type="number" min="0" step="0.1"></div>
+        <button type="button" class="btn btn--primary" id="add-nut">Add goal</button>
+      </div>
+      <div class="stack" id="nut-list" style="gap:8px"></div>
+    </div>
+    <div style="height:1px;background:var(--line)"></div>
+    <div class="stack">
+      <h2>Weight goal <span class="muted small" style="font-weight:500">(optional)</span></h2>
+      <div class="form-grid">
+        <div class="field"><label for="target_kg">Target weight (kg)</label><input class="input" id="target_kg" name="target_kg" type="number" step="0.1" min="30" max="300"></div>
+        <div class="field"><label for="target_date">Reach by</label><input class="input" id="target_date" name="target_date" type="date"></div>
+      </div>
+    </div>
+    <div class="info">Your <b>exercise minutes, workouts, streaks, sleep and water</b> are shared automatically with your network so you can compare and cheer each other on. Your meals and body weight stay private.</div>
+    <div class="row-between" style="border-top:1px solid var(--line-2);padding-top:16px">
+      <button type="button" class="btn" id="back-3">Back</button>
+      <button class="btn btn--primary" type="submit">Create my plan</button>
+    </div>
+  </form>
+
+  <!-- DONE ------------------------------------------------------------- -->
+  <section class="card" id="step-done" hidden style="align-items:flex-start">
+    <span class="icon-box" style="width:56px;height:56px"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5"/><circle cx="17.5" cy="9" r="2.5"/><path d="M17 14.5c2.4.2 4 1.8 4.5 4.5"/></svg></span>
+    <h2 style="font-size:24px;font-family:var(--font-display)">You're all set!</h2>
+    <p class="muted" id="network-text">We matched you with a network of people with a similar profile.</p>
+    <div class="chips" id="network-criteria"></div>
+    <a class="btn btn--primary" href="dashboard.html">Go to my dashboard</a>
+  </section>
+</main>
+<script type="module" src="assets/js/pages/signup.js"></script>
+</body>
+</html>
