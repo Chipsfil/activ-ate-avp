@@ -151,7 +151,7 @@ async function load() {
     const d = await dashboard.get(todayISO());
     renderKpis(d); renderWeek(d.days); renderGoals(d.goal_progress); renderRecent(d.recent_workouts);
     renderNetwork(d.network_top, d.network_note); renderFeed(d.feed);
-    if (d.today.water_l !== null && document.activeElement !== checkin.water_l) checkin.water_l.value = d.today.water_l;
+    if (document.activeElement !== checkin.water_l) checkin.water_l.value = d.checkin?.water_l ?? d.today.water_l ?? '';
   } catch (err) { toast(err.message, 'error'); }
 }
 load();

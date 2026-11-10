@@ -1,4 +1,4 @@
-"""Exercise leaderboard, member comparisons, and weekly cheers."""
+"""Community leaderboards, member comparisons, and weekly cheers."""
 
 from datetime import date, timedelta
 
@@ -9,19 +9,50 @@ from .common import auth_required, body, conn, err, iso, week_start, weekly_targ
 bp = Blueprint("community", __name__)
 
 
-def _exercise_only():
-    # GET requests use the URL query; POST requests use the JSON body.
-    habit = request.args.get("habit")
-    if request.method == "POST":
-        habit = body().get("habit", "exercise")
-    if habit not in (None, "", "exercise"):
-        return err(
-            "Only exercise minutes are available in the community.",
-            "unsupported_habit",
-            422,
-            "habit",
-        )
-    return None
+def _habit():
+    habit = (body().get("habit", "exercise") if request.method == "POST"
+             else request.args.get("habit", "exercise"))
+    if habit not in ("exercise", "water"):
+        return None
+    return habit
+
+
+def _water_target(connection, user_id):
+    row = connection.execute(
+        "SELECT amount FROM nutrition_goals WHERE user_id=%s AND nutrient='water'",
+        (user_id,),
+    ).fetchone()
+    return float(row["amount"]) if row else 2.0
+
+
+def _water(connection, user_id, start, end):
+    row = connection.execute(
+        "SELECT COALESCE(SUM(water_l), 0) total FROM daily_logs "
+        "WHERE user_id=%s AND log_date BETWEEN %s AND %s",
+        (user_id, start, end),
+    ).fetchone()
+    return float(row["total"])
+
+
+def _water_active(connection, user_id, day):
+    return bool(connection.execute(
+        "SELECT 1 FROM daily_logs WHERE user_id=%s AND log_date=%s AND water_l IS NOT NULL",
+        (user_id, day),
+    ).fetchone())
+
+
+def _water_streak(connection, user_id, target):
+    current = date.today()
+    if not _water_active(connection, user_id, current):
+        current -= timedelta(days=1)
+    streak = 0
+    while connection.execute(
+        "SELECT 1 FROM daily_logs WHERE user_id=%s AND log_date=%s AND water_l >= %s",
+        (user_id, current, target),
+    ).fetchone():
+        streak += 1
+        current -= timedelta(days=1)
+    return streak
 
 
 def _minutes(connection, user_id, start, end):
@@ -62,30 +93,36 @@ def _streak(connection, user_id):
     return streak
 
 
-def _cheer_status(connection, from_user, to_user, week_start):
+def _cheer_status(connection, from_user, to_user, week_start, habit):
     # Check this viewer's cheer separately from the total cheers the member received.
     row = connection.execute(
         "SELECT 1 FROM cheers WHERE from_user=%s AND to_user=%s "
-        "AND habit='exercise' AND week_start=%s",
-        (from_user, to_user, week_start),
+        "AND habit=%s AND week_start=%s",
+        (from_user, to_user, habit, week_start),
     ).fetchone()
     count = connection.execute(
         "SELECT COUNT(*) count FROM cheers WHERE to_user=%s "
-        "AND habit='exercise' AND week_start=%s",
-        (to_user, week_start),
+        "AND habit=%s AND week_start=%s",
+        (to_user, habit, week_start),
     ).fetchone()["count"]
     return bool(row), int(count)
 
 
-def _member_stats(connection, user, start, end, elapsed, current_user_id):
+def _member_stats(connection, user, start, end, elapsed, current_user_id, habit):
     user_id = user["id"]
-    value = _minutes(connection, user_id, start, end)
-    target = weekly_target(connection, user_id)
+    measure = _minutes if habit == "exercise" else _water
+    value = measure(connection, user_id, start, end)
+    if habit == "exercise":
+        target = weekly_target(connection, user_id)
+        daily_target = round(target / 7)
+    else:
+        daily_target = _water_target(connection, user_id)
+        target = round(daily_target * elapsed, 2)
     # Compare the same number of days in each week.
     previous_start = start - timedelta(days=7)
     previous_end = previous_start + timedelta(days=elapsed - 1)
-    previous = _minutes(connection, user_id, previous_start, previous_end)
-    cheered, cheer_count = _cheer_status(connection, current_user_id, user_id, start)
+    previous = measure(connection, user_id, previous_start, previous_end)
+    cheered, cheer_count = _cheer_status(connection, current_user_id, user_id, start, habit)
     # Database IDs may be UUID objects, while the token supplies the ID as text.
     is_me = str(user_id) == str(current_user_id)
     return {
@@ -97,17 +134,17 @@ def _member_stats(connection, user, start, end, elapsed, current_user_id):
         "is_me": is_me,
         "value": value,
         "target": target,
-        "daily_target": round(target / 7),
-        "streak": _streak(connection, user_id),
+        "daily_target": daily_target,
+        "streak": _streak(connection, user_id) if habit == "exercise" else _water_streak(connection, user_id, daily_target),
         "change_pct": round((value - previous) * 100 / previous) if previous else 0,
-        "active_today": _active_today(connection, user_id),
+        "active_today": _active_today(connection, user_id) if habit == "exercise" else _water_active(connection, user_id, date.today()),
         "goal_reached": value >= target,
         "cheered_by_me": False if is_me else cheered,
         "cheer_count": cheer_count,
     }
 
 
-def _leaderboard(connection, current_user_id):
+def _leaderboard(connection, current_user_id, habit="exercise"):
     start = week_start()
     today = date.today()
     elapsed = (today - start).days + 1
@@ -115,16 +152,16 @@ def _leaderboard(connection, current_user_id):
         "SELECT id,username FROM users ORDER BY username,id"
     ).fetchall()
     rows = [
-        _member_stats(connection, user, start, today, elapsed, current_user_id)
+        _member_stats(connection, user, start, today, elapsed, current_user_id, habit)
         for user in users
     ]
-    # Rank by most minutes first; use display name to break ties.
+    # Rank by total first; use display name to break ties.
     rows.sort(key=lambda row: (-row["value"], row["display_name"]))
     me = next(row for row in rows if row["is_me"])
     # Add each rank, the difference from the viewer, and whether a cheer is allowed.
     for rank, row in enumerate(rows, 1):
         row["rank"] = rank
-        row["vs_me"] = None if row["is_me"] else row["value"] - me["value"]
+        row["vs_me"] = None if row["is_me"] else round(row["value"] - me["value"], 2)
         row["can_cheer"] = (
             not row["is_me"] and row["goal_reached"] and not row["cheered_by_me"]
         )
@@ -134,9 +171,9 @@ def _leaderboard(connection, current_user_id):
 @bp.get("/api/v1/community/network")
 @auth_required
 def network():
-    failure = _exercise_only()
-    if failure:
-        return failure
+    habit = _habit()
+    if not habit:
+        return err("Habit must be exercise or water.", "unsupported_habit", 422, "habit")
     with conn() as connection:
         # Every registered user belongs to the same community.
         member_count = connection.execute(
@@ -145,29 +182,29 @@ def network():
     return {
         "id": "all-users",
         "member_count": int(member_count),
-        "criteria": [{"label": "Habit", "value": "Exercise minutes"}],
-        "explanation": "All registered users share exercise minutes in one community.",
-        "shared_data": ["Exercise minutes", "Workout type and duration"],
+        "criteria": [{"label": "Habit", "value": "Exercise minutes and water"}],
+        "explanation": "All registered users share exercise minutes and water intake in one community.",
+        "shared_data": ["Exercise minutes", "Workout type and duration", "Water intake"],
     }
 
 
 @bp.get("/api/v1/community/leaderboard")
 @auth_required
 def leaderboard():
-    failure = _exercise_only()
-    if failure:
-        return failure
+    habit = _habit()
+    if not habit:
+        return err("Habit must be exercise or water.", "unsupported_habit", 422, "habit")
     with conn() as connection:
-        _, rows = _leaderboard(connection, g.user_id)
+        _, rows = _leaderboard(connection, g.user_id, habit)
     first = rows[0]
-    # Break ties for the longest streak using this week's exercise minutes.
+    # Break ties for the longest streak using this week's total.
     top_streak = max(rows, key=lambda row: (row["streak"], row["value"]))
     me = next(row for row in rows if row["is_me"])
     return {
-        "habit": "exercise",
-        "unit": "min",
+        "habit": habit,
+        "unit": "min" if habit == "exercise" else "L",
         "period": "week",
-        "target_label": "Weekly target",
+        "target_label": "Weekly target" if habit == "exercise" else "Daily target",
         "rows": rows,
         "summary": {
             "my_rank": me["rank"],
@@ -176,8 +213,8 @@ def leaderboard():
                 "days": top_streak["streak"],
                 "display_name": top_streak["display_name"],
             },
-            "gap_to_first": max(0, first["value"] - me["value"]),
-            "gap_unit": "min",
+            "gap_to_first": max(0, round(first["value"] - me["value"], 2)),
+            "gap_unit": "min" if habit == "exercise" else "L",
         },
     }
 
@@ -185,9 +222,9 @@ def leaderboard():
 @bp.get("/api/v1/community/members/<member_id>")
 @auth_required
 def member(member_id):
-    failure = _exercise_only()
-    if failure:
-        return failure
+    habit = _habit()
+    if not habit:
+        return err("Habit must be exercise or water.", "unsupported_habit", 422, "habit")
     period = request.args.get("period", "week")
     if period not in ("week", "month", "all"):
         return err(
@@ -200,7 +237,7 @@ def member(member_id):
         ).fetchone()
         if not row:
             return err("Member not found.", "not_found", 404)
-        start, rows = _leaderboard(connection, g.user_id)
+        start, rows = _leaderboard(connection, g.user_id, habit)
         stats = next(
             (item for item in rows if item["member_id"] == str(member_id)), None
         )
@@ -213,16 +250,24 @@ def member(member_id):
             range_start = date.today() - timedelta(days=29)
         else:
             range_start = date.min
-        total_member = _minutes(connection, member_id, range_start, date.today())
-        me_id = g.user_id
-        total_me = _minutes(connection, me_id, range_start, date.today())
-        # Show up to eight recent completed workouts in the selected comparison period.
-        logs = connection.execute(
-            "SELECT performed_on,sport_name,duration_min FROM workouts "
-            "WHERE user_id=%s AND status='done' AND performed_on BETWEEN %s AND %s "
-            "ORDER BY performed_on DESC, created_at DESC LIMIT 8",
-            (member_id, range_start, date.today()),
-        ).fetchall()
+        measure = _minutes if habit == "exercise" else _water
+        total_member = measure(connection, member_id, range_start, date.today())
+        total_me = measure(connection, g.user_id, range_start, date.today())
+        # Show up to eight recent entries in the selected comparison period.
+        if habit == "exercise":
+            logs = connection.execute(
+                "SELECT performed_on,sport_name,duration_min FROM workouts "
+                "WHERE user_id=%s AND status='done' AND performed_on BETWEEN %s AND %s "
+                "ORDER BY performed_on DESC, created_at DESC LIMIT 8",
+                (member_id, range_start, date.today()),
+            ).fetchall()
+        else:
+            logs = connection.execute(
+                "SELECT log_date,water_l FROM daily_logs WHERE user_id=%s "
+                "AND log_date BETWEEN %s AND %s AND water_l IS NOT NULL "
+                "ORDER BY log_date DESC LIMIT 8",
+                (member_id, range_start, date.today()),
+            ).fetchall()
         sports = connection.execute(
             "SELECT name FROM user_sports WHERE user_id=%s ORDER BY name",
             (member_id,),
@@ -238,22 +283,21 @@ def member(member_id):
             "rank": stats["rank"],
             "streak": stats["streak"],
         },
-        "habit": "exercise",
+        "habit": habit,
         "period": period,
-        "unit": "min",
+        "unit": "min" if habit == "exercise" else "L",
         "targets": {
-            "member": f"{stats['target']} min / week",
-            "me": f"{mine['target']} min / week",
+            "member": f"{stats['target']} min / week" if habit == "exercise" else f"{stats['daily_target']} L / day",
+            "me": f"{mine['target']} min / week" if habit == "exercise" else f"{mine['daily_target']} L / day",
         },
         "totals": {"member": total_member, "me": total_me},
         "log": [
-            {
-                "date": iso(log["performed_on"]),
-                "label": log["sport_name"],
-                "value": int(log["duration_min"]),
-                "unit": "min",
-                "met": None,
-            }
+            ({"date": iso(log["performed_on"]), "label": log["sport_name"],
+              "value": int(log["duration_min"]), "unit": "min", "met": None}
+             if habit == "exercise" else
+             {"date": iso(log["log_date"]), "label": None,
+              "value": float(log["water_l"]), "unit": "L",
+              "met": float(log["water_l"]) >= stats["daily_target"]})
             for log in logs
         ],
         "goal_reached": stats["goal_reached"],
@@ -266,11 +310,11 @@ def member(member_id):
 @bp.post("/api/v1/community/members/<member_id>/cheers")
 @auth_required
 def cheer(member_id):
-    failure = _exercise_only()
-    if failure:
-        return failure
+    habit = _habit()
+    if not habit:
+        return err("Habit must be exercise or water.", "unsupported_habit", 422, "habit")
     with conn() as connection:
-        _, rows = _leaderboard(connection, g.user_id)
+        _, rows = _leaderboard(connection, g.user_id, habit)
         row = next((item for item in rows if item["member_id"] == str(member_id)), None)
         if not row or row["is_me"]:
             return err("This member is not in your network.", "not_found", 404)
@@ -286,22 +330,22 @@ def cheer(member_id):
                 "You already cheered for this goal this week.", "already_cheered", 409
             )
         connection.execute(
-            "INSERT INTO cheers(from_user,to_user,habit,week_start) VALUES(%s,%s,'exercise',%s)",
-            (g.user_id, member_id, week_start()),
+            "INSERT INTO cheers(from_user,to_user,habit,week_start) VALUES(%s,%s,%s,%s)",
+            (g.user_id, member_id, habit, week_start()),
         )
         connection.commit()
-        _, count = _cheer_status(connection, g.user_id, member_id, week_start())
+        _, count = _cheer_status(connection, g.user_id, member_id, week_start(), habit)
     return {"cheered": True, "cheer_count": count}, 201
 
 
 @bp.get("/api/v1/community/insights")
 @auth_required
 def insights():
-    failure = _exercise_only()
-    if failure:
-        return failure
+    habit = _habit()
+    if not habit:
+        return err("Habit must be exercise or water.", "unsupported_habit", 422, "habit")
     with conn() as connection:
-        _, rows = _leaderboard(connection, g.user_id)
+        _, rows = _leaderboard(connection, g.user_id, habit)
     me = next(row for row in rows if row["is_me"])
     first = rows[0]
     items = []
@@ -316,7 +360,7 @@ def insights():
     else:
         items.append(
             {
-                "text": f"{first['display_name']} is ahead by {first['value'] - me['value']} min this week. One more session brings you closer to first place.",
+                "text": f"{first['display_name']} is ahead by {round(first['value'] - me['value'], 2)} {'min' if habit == 'exercise' else 'L'} this week.",
                 "action": None,
             }
         )
@@ -324,40 +368,39 @@ def insights():
         if row["can_cheer"]:
             items.append(
                 {
-                    "text": f"{row['display_name']} reached the exercise minutes goal. Send a cheer to keep the motivation up.",
+                    "text": f"{row['display_name']} reached the {'exercise minutes' if habit == 'exercise' else 'water'} goal. Send a cheer to keep the motivation up.",
                     "action": "cheer",
                     "member_id": row["member_id"],
                 }
             )
-    return {"habit": "exercise", "items": items[:5]}
+    return {"habit": habit, "items": items[:5]}
 
 
 @bp.get("/api/v1/feed")
 @auth_required
 def feed():
-    failure = _exercise_only()
-    if failure:
-        return failure
+    habit = _habit()
+    if not habit:
+        return err("Habit must be exercise or water.", "unsupported_habit", 422, "habit")
     try:
         limit = min(max(int(request.args.get("limit", 10)), 1), 30)
     except (TypeError, ValueError):
         return err("Limit must be a number.", "validation_error", 422, "limit")
     with conn() as connection:
-        _, rows = _leaderboard(connection, g.user_id)
-    # The feed shows other members who reached their weekly exercise goal.
+        boards = {h: _leaderboard(connection, g.user_id, h)[1] for h in ("exercise", "water")}
     items = [
         {
-            "id": f"{row['member_id']}-exercise",
+            "id": f"{row['member_id']}-{h}",
             "member_id": row["member_id"],
             "display_name": row["display_name"],
             "initials": row["initials"],
-            "habit": "exercise",
-            "text": "reached the weekly exercise goal",
+            "habit": h,
+            "text": "reached the weekly exercise goal" if h == "exercise" else "reached the water target so far this week",
             "cheered_by_me": row["cheered_by_me"],
             "cheer_count": row["cheer_count"],
             "can_cheer": row["can_cheer"],
         }
-        for row in rows
+        for h, rows in boards.items() for row in rows
         if not row["is_me"] and row["goal_reached"]
     ]
     return {"items": items[:limit]}

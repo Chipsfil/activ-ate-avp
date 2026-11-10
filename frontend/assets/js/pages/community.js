@@ -61,7 +61,7 @@ function render() {
       <span class="rank">${r.rank}</span>
       <span class="row" style="gap:10px;flex-wrap:nowrap;min-width:0">
         <span class="avatar${r.is_me ? ' avatar--me' : ''}" style="width:32px;height:32px;font-size:12px">${esc(r.initials)}</span>
-        ${r.is_me ? '<b>You</b>' : `<a href="member.html?id=${encodeURIComponent(r.member_id)}" style="font-weight:600;color:var(--ink)">${esc(r.display_name)}</a>`}
+        ${r.is_me ? '<b>You</b>' : `<a href="member.html?id=${encodeURIComponent(r.member_id)}&habit=${encodeURIComponent(h)}" style="font-weight:600;color:var(--ink)">${esc(r.display_name)}</a>`}
         ${r.active_today ? '<span class="dot-active" title="Active today"></span>' : ''}
         ${r.goal_reached ? '<span class="tag tag--brand" title="Goal reached">Goal ✓</span>' : ''}
       </span>
@@ -113,7 +113,7 @@ async function loadFeed() {
     $('#feed').innerHTML = items.length ? items.map((f) => `
       <div class="row" style="flex-wrap:nowrap;align-items:flex-start">
         <span class="avatar" style="width:32px;height:32px;font-size:12px">${esc(f.initials)}</span>
-        <div class="stack grow" style="gap:6px"><span class="small"><a href="member.html?id=${encodeURIComponent(f.member_id)}" style="font-weight:700;color:var(--ink)">${esc(f.display_name)}</a> ${esc(f.text)}</span>
+        <div class="stack grow" style="gap:6px"><span class="small"><a href="member.html?id=${encodeURIComponent(f.member_id)}&habit=${encodeURIComponent(f.habit)}" style="font-weight:700;color:var(--ink)">${esc(f.display_name)}</a> ${esc(f.text)}</span>
           ${f.can_cheer ? `<button type="button" class="btn btn--small" style="align-self:flex-start" data-cheer="${esc(f.member_id)}" data-habit="${esc(f.habit)}">${icons.clap}Cheer</button>` : `<span class="small" style="color:var(--brand);font-weight:600">${f.cheered_by_me ? 'You cheered ✓ · ' : ''}${f.cheer_count} cheers</span>`}
         </div></div>`).join('') : '<div class="empty">No achievements yet this week.</div>';
   } catch { /* ignore */ }

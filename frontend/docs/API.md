@@ -170,7 +170,7 @@ Search should also match aliases (e.g. "gym" → Weightlifting, "unihockey" → 
 `days[].minutes` is `null` for future days.
 
 ### `PUT /daily-logs` (water check-in)
-Returns `501 { "message": "Not implemented in the backend" }`.
+Saves a water check-in: `{ "date": "2026-10-17", "water_l": 1.5 }`. The date defaults to today; `water_l` must be between 0 and 10 liters, or `null` to clear it. Returns the saved date and water amount.
 
 ---
 

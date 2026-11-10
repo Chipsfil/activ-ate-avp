@@ -5,7 +5,9 @@ await initPage('community');
 
 const id = new URLSearchParams(location.search).get('id');
 if (!id) location.replace('community.html');
-const state = { habit: 'exercise', period: 'week' };
+const initialHabit = new URLSearchParams(location.search).get('habit');
+const state = { habit: initialHabit === 'water' ? 'water' : 'exercise', period: 'week' };
+$$('#habits [data-habit]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.habit === state.habit)));
 const UNIT = { exercise: 'min', water: 'L' };
 const PERIOD = { week: 'this week', month: 'last 30 days', all: 'all time' };
 

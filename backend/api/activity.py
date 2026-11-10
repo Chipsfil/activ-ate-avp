@@ -221,7 +221,24 @@ def sports():
 @bp.put("/api/v1/daily-logs")
 @auth_required
 def save_daily_log():
-    return {"message": "Not implemented in the backend"}, 501
+    values = body()
+    if not isinstance(values, dict):
+        return err("Expected a JSON object.")
+    day = parse_date(values.get("date"), date.today())
+    if day is None:
+        return err("Invalid date.", field="date")
+    water = values.get("water_l")
+    if water is not None and (isinstance(water, bool) or not isinstance(water, (int, float))
+                              or not math.isfinite(water) or not 0 <= water <= 10):
+        return err("Water must be between 0 and 10 liters.", field="water_l")
+    with conn() as connection:
+        row = connection.execute(
+            "INSERT INTO daily_logs(user_id,log_date,water_l) VALUES(%s,%s,%s) "
+            "ON CONFLICT (user_id,log_date) DO UPDATE SET water_l=EXCLUDED.water_l "
+            "RETURNING water_l", (g.user_id, day, water),
+        ).fetchone()
+        connection.commit()
+    return {"date": iso(day), "water_l": float(row["water_l"]) if row["water_l"] is not None else None}
 
 
 @bp.get("/api/v1/dashboard")
