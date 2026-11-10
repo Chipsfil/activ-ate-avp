@@ -23,6 +23,28 @@ available settings are `FRONTEND_ORIGIN` (default `http://localhost:8080`),
 `COOKIE_SECURE`, `COOKIE_SAMESITE`, `HOST` (default `0.0.0.0`), and `PORT`
 (default `8000`). Do not commit `.env`.
 
+For the AI Coach and recommendations, choose a provider in `backend/.env`:
+
+```env
+AI_PROVIDER=openai
+OPENAI_API_KEY=your-openai-api-key
+OPENAI_MODEL=gpt-4o-mini
+```
+
+Or use DeepSeek:
+
+```env
+AI_PROVIDER=deepseek
+DEEPSEEK_API_KEY=your-deepseek-api-key
+DEEPSEEK_MODEL=deepseek-flash
+```
+
+Restart the backend after changing these settings. API usage is billed by the
+selected provider. Coach questions, the last 10 conversation messages, and
+your goals, sports, and weekly activity target are sent to that provider.
+The conversations are saved in PostgreSQL. Recommendation cards use the same
+profile details and make a new API request each time they are loaded.
+
 Create an empty database, then apply the schema and start the API:
 
 ```bash
