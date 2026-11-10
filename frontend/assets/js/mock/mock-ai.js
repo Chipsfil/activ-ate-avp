@@ -87,7 +87,6 @@ export function coachReply(question, c) {
       proposed_sessions: plan.map((p) => ({ sport: p.sport, minutes: p.minutes, day: p.day })),
     };
   }
-  if (has('sleep', 'tired', 'fatigue')) return { content: `You averaged ${c.sleepAvg ?? '–'} h of sleep over the last 7 days (target ${c.sleepTarget} h). Recovery happens mostly in deep sleep. Try a fixed bedtime, no screens 30 min before and caffeine only before 14:00.` };
   if (has('before', 'pre-run', 'pre run', 'pre-workout')) return { content: '1–2 h before training: 30–50 g easy carbs, little fat and fiber.\n\n• Banana + 2 rice cakes with honey\n• Toast with jam\n• Small bowl of oats with milk\n\nIf you only have 30 minutes, a banana alone is enough. Drink ~400 ml water.' };
   if (has('after', 'recover', 'post')) return { content: `After training: 30–40 g protein + carbs within 2 hours.${protGap > 0 ? ` Today you still need about ${protGap} g protein – 250 g skyr would cover most of it.` : ''}` };
   if (has('protein')) return { content: `Your protein target is ${c.proteinTarget} g per day; today you are at ${Math.round(c.proteinToday)} g. Easy wins:\n• 3 eggs at breakfast (+19 g)\n• Skyr instead of yogurt (+10 g)\n• 150 g chicken, tofu or lentils at lunch (+20–45 g)` };

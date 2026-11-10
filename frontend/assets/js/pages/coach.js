@@ -10,7 +10,7 @@ let conversationId = null;
 let busy = false;
 
 const CHIPS = ['Build my training plan for next week', 'What should I eat before my run?', 'How can I get more protein?', 'How do I compare to my network?'];
-const ACTIONS = [['Create next week\'s plan', 'Build my training plan for next week'], ['Close my protein gap', 'How can I get more protein?'], ['Improve my recovery', 'I feel tired – how can I sleep and recover better?']];
+const ACTIONS = [['Create next week\'s plan', 'Build my training plan for next week'], ['Close my protein gap', 'How can I get more protein?']];
 $('#chips').innerHTML = CHIPS.map((c) => `<button type="button" class="chip" style="font-size:13px;min-height:38px">${esc(c)}</button>`).join('');
 $('#actions').innerHTML = ACTIONS.map(([l, q]) => `<button type="button" class="btn btn--ghost-dark" style="justify-content:flex-start" data-q="${esc(q)}">${esc(l)}</button>`).join('');
 $('#chips').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) send(b.textContent); });

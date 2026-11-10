@@ -41,7 +41,7 @@ Every router depends on `get_current_user()` (verifies the JWT) except the publi
 
 | Table | Columns | Notes |
 | --- | --- | --- |
-| `users` | id (uuid pk), username (unique, citext), email (unique, citext), password_hash, first_name, last_name, gender, date_of_birth, height_cm, sleep_goal_h (default 8), onboarding_step (text: '2','3','4','done'), created_at | |
+| `users` | id (uuid pk), username (unique, citext), email (unique, citext), password_hash, first_name, last_name, gender, date_of_birth, height_cm, onboarding_step (text: '2','3','4','done'), created_at | |
 | `sessions` | id, user_id → users, refresh_token_hash, expires_at, revoked_at, created_at | refresh tokens |
 | `body_weights` | id, user_id, weight_kg, measured_on | history; latest row = current weight |
 | `user_goals` | user_id, goal (enum lose_weight/gain_muscle/improve_stamina), position | position 0 = primary goal (used for network) |
@@ -55,7 +55,7 @@ Every router depends on `get_current_user()` (verifies the JWT) except the publi
 | `meals` | id, user_id, eaten_on, meal_type, description, source (ai/manual), kcal, protein_g, carbs_g, fat_g, estimate_id, edited (bool), created_at | index (user_id, eaten_on) |
 | `meal_items` | id, meal_id, name, amount_g, kcal, protein_g, carbs_g, fat_g, assumed | |
 | `ai_meal_estimates` | id, user_id, input_text, model, response_json, status (pending/confirmed/discarded), created_at | |
-| `daily_logs` | user_id, log_date, sleep_hours, water_l | pk (user_id, log_date) |
+| `daily_logs` | user_id, log_date, water_l | pk (user_id, log_date) |
 | `networks` | id, criteria_json, created_at | auto-assigned groups |
 | `network_members` | network_id, user_id, joined_at, left_at | one active row per user |
 | `cheers` | id, from_user, to_user, habit, week_start, created_at | unique (from_user, to_user, habit, week_start) |
@@ -72,7 +72,7 @@ Community data is shared automatically within a network; the only interaction is
 ### 3.1 Calorie & macro targets (`computed_defaults`, used when the user sets no own goal)
 - BMR (Mifflin-St Jeor): `10·kg + 6.25·cm − 5·age + s`, with s = +5 (male), −161 (female), −78 (diverse/unspecified).
 - TDEE = BMR × 1.55 (moderately active). Goal adjustment: lose_weight −400 kcal, gain_muscle +250 kcal. Round to 50.
-- Protein: 1.8 g/kg (gain_muscle), else 1.4 g/kg. Fat: 30 % of kcal ÷ 9. Carbs: remaining kcal ÷ 4. Water: 2 L. Sleep: 8 h.
+- Protein: 1.8 g/kg (gain_muscle), else 1.4 g/kg. Fat: 30 % of kcal ÷ 9. Carbs: remaining kcal ÷ 4. Water: 2 L.
 - `POST /me/onboarding/complete` stores calories, protein and water goals if the user added none.
 
 ### 3.2 Calories burned per workout
@@ -89,7 +89,7 @@ Community data is shared automatically within a network; the only interaction is
 
 ### 3.4 Streaks
 - Dashboard streak = consecutive days (counting back from today, or from yesterday if today has no entry yet) with at least one logged workout, meal or check-in. Best = longest run in the last 120 days.
-- Community streaks per habit: exercise = days in a row with a done workout; sleep = nights in a row with `sleep_hours ≥ sleep_goal_h`; water = days in a row with `water_l ≥ water goal`.
+- Community streaks per habit: exercise = days in a row with a done workout; water = days in a row with `water_l ≥ water goal`.
 
 ### 3.5 Goal check (`POST /goals/check`) – rule based, no AI
 1. Weekly planned minutes ≥ 150 (WHO) → ok, else warning.
@@ -120,16 +120,16 @@ weekly target minutes) with a size constraint of 8–12, recomputed monthly.
 
 **Leaderboard values** (`GET /community/leaderboard`): for each active member of the user's network, compute
 `value`, `target`, `streak`, `change_pct` (vs. same days of last week), `active_today`, `goal_reached` as defined in API.md §9.
-`goal_reached`: exercise → minutes this week ≥ weekly target; sleep/water → value ≥ daily target × days elapsed.
+`goal_reached`: exercise → minutes this week ≥ weekly target; water → value ≥ daily target × days elapsed.
 
-**Shared data:** exercise minutes, workout sport/duration/date, streaks, sleep hours, water. **Never shared:** meals,
+**Shared data:** exercise minutes, workout sport/duration/date, streaks, water. **Never shared:** meals,
 calories, body weight, notes, email. Display name = first name + last initial (full name only on the member profile).
 This is shown to users during onboarding and on the Goals page; mention it in the privacy policy.
 
 **Cheers:** allowed only if `goal_reached` is true, the target is in the same network, and the sender has not cheered
 that member for that habit in the current week (unique constraint). Cheers appear as a count; no free text.
 
-**Feed:** generated from events detected when data is saved: weekly exercise goal reached, sleep/water target met all
+**Feed:** generated from events detected when data is saved: weekly exercise goal reached, water target met all
 days of the week so far, streak milestones (7/14/30 days), new personal best.
 
 ---

@@ -18,7 +18,13 @@
   <aside id="sidebar" class="sidebar"></aside>
   <main class="main" id="main">
 
-    <div class="page-header"><div><h1>Workouts</h1><p class="lead">Log your sessions and see how your training develops.</p></div></div>
+    <div class="page-header"><div><h1>Workouts</h1><p class="lead">Log your sessions and see how your training develops.</p></div>
+      <div class="row" role="group" aria-label="Choose week">
+        <button class="btn btn--icon" type="button" id="prev-week" aria-label="Previous week"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <input class="input" type="date" id="week" aria-label="Choose a date in the week" style="width:auto">
+        <button class="btn btn--icon" type="button" id="next-week" aria-label="Next week"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+      </div></div>
+    <p class="small muted" id="week-label" aria-live="polite"></p>
     <section class="kpis" id="kpis" aria-label="Key figures"><div class="skeleton" style="height:90px"></div><div class="skeleton" style="height:90px"></div><div class="skeleton" style="height:90px"></div><div class="skeleton" style="height:90px"></div></section>
     <div class="cols">
       <section class="card" style="flex:2 1 360px" id="log"><h2>Log a workout</h2><div id="form-host"></div></section>
@@ -29,7 +35,7 @@
           <p class="small muted" id="weeks-note"></p>
         </section>
         <div class="cols">
-          <section class="card" style="flex:1 1 240px"><h2>This week by sport</h2><div id="by-sport" class="stack"><div class="skeleton" style="height:80px"></div></div></section>
+          <section class="card" style="flex:1 1 240px"><h2 id="by-sport-title">This week by sport</h2><div id="by-sport" class="stack"><div class="skeleton" style="height:80px"></div></div></section>
           <section class="card" style="flex:1 1 240px"><h2>Personal bests</h2><div id="pbs"><div class="skeleton" style="height:120px"></div></div></section>
         </div>
       </div>

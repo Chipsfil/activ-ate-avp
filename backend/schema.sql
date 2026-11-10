@@ -87,7 +87,6 @@ CREATE INDEX IF NOT EXISTS meals_user_date ON meals(user_id, eaten_on);
 CREATE TABLE IF NOT EXISTS daily_logs (
   user_id uuid REFERENCES users(id) ON DELETE CASCADE, 
   log_date date NOT NULL,
-  sleep_hours numeric(4,1), 
   water_l numeric(4,1), PRIMARY KEY(user_id, log_date)
 );
 CREATE TABLE IF NOT EXISTS networks (

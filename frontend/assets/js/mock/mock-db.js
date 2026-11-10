@@ -62,7 +62,6 @@ function seed() {
     nutrition_goals: [
       { nutrient: 'calories', amount: 2600 }, { nutrient: 'protein', amount: 140 }, { nutrient: 'water', amount: 2 },
     ],
-    sleep_goal_h: 8,
     weight_goal: { start_kg: 62.5, target_kg: 67, target_date: '2027-02-01' },
     network_id: null,
   };
@@ -115,7 +114,7 @@ function seed() {
     });
   }
   for (let d = 13; d >= 1; d--) {
-    data.daily_logs.push({ user_id: user.id, log_date: addDays(t, -d), sleep_hours: round1(6.8 + r() * 1.6), water_l: round1(1.4 + r() * 1.2) });
+    data.daily_logs.push({ user_id: user.id, log_date: addDays(t, -d), water_l: round1(1.4 + r() * 1.2) });
   }
   cache = data;
   save();

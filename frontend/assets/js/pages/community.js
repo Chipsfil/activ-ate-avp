@@ -11,8 +11,8 @@ const state = { habit: 'exercise', sort: 'rank', q: '', data: null };
 const monday = (() => { const d = new Date(); const back = (d.getDay() + 6) % 7; return addDaysISO(todayISO(), -back); })();
 $('#week-label').textContent = `This week · ${formatDate(monday, { day: 'numeric', month: 'short' })} – ${formatDate(addDaysISO(monday, 6), { day: 'numeric', month: 'short' })}`;
 
-const UNIT = { exercise: 'min', sleep: 'h', water: 'L' };
-const TITLE = { exercise: 'Exercise minutes', sleep: 'Sleep', water: 'Water' };
+const UNIT = { exercise: 'min', water: 'L' };
+const TITLE = { exercise: 'Exercise minutes', water: 'Water' };
 const val = (v, h) => `${fmt(v, h === 'exercise' ? 0 : 1)} ${UNIT[h]}`;
 
 /* ----------------------------------------------------------- Network card */
@@ -48,9 +48,9 @@ function render() {
   if (state.sort === 'goal') rows = rows.filter((r) => r.goal_reached || r.is_me);
   if (state.q) rows = rows.filter((r) => r.is_me || r.display_name.toLowerCase().includes(state.q));
 
-  const head = `<div class="tr th"><span>Rank</span><span>Member</span><span>Progress to target</span><span>${h === 'exercise' ? 'This week' : h === 'sleep' ? 'Hours this week' : 'Liters this week'}</span><span>Streak</span><span>vs. You</span><span>Cheer</span></div>`;
+  const head = `<div class="tr th"><span>Rank</span><span>Member</span><span>Progress to target</span><span>${h === 'exercise' ? 'This week' : 'Liters this week'}</span><span>Streak</span><span>vs. You</span><span>Cheer</span></div>`;
   $('#board').innerHTML = head + rows.map((r) => {
-    const vs = r.is_me ? '–' : (h === 'sleep' ? `${r.vs_me > 0 ? '+' : ''}${r.vs_me} days` : `${r.vs_me > 0 ? '+' : ''}${fmt(r.vs_me, h === 'exercise' ? 0 : 1)} ${UNIT[h]}`);
+    const vs = r.is_me ? '–' : `${r.vs_me > 0 ? '+' : ''}${fmt(r.vs_me, h === 'exercise' ? 0 : 1)} ${UNIT[h]}`;
     const vsColor = r.is_me ? 'var(--ink-2)' : r.vs_me > 0 ? 'var(--orange-ink)' : 'var(--brand)';
     let cheer = '';
     if (r.is_me) cheer = r.goal_reached ? `<span class="small" style="color:var(--brand);font-weight:600">${r.cheer_count} cheers</span>` : '';

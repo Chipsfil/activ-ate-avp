@@ -124,7 +124,7 @@ checkin.addEventListener('submit', async (e) => {
   const btn = $('[type="submit"]', checkin);
   setBusy(btn, true);
   try {
-    await dashboard.saveDailyLog({ date: todayISO(), sleep_hours: checkin.sleep_hours.value === '' ? null : Number(checkin.sleep_hours.value), water_l: checkin.water_l.value === '' ? null : Number(checkin.water_l.value) });
+    await dashboard.saveDailyLog({ date: todayISO(), water_l: checkin.water_l.value === '' ? null : Number(checkin.water_l.value) });
     toast('Check-in saved');
     load();
   } catch (err) { showError(checkin, err); } finally { setBusy(btn, false); }
@@ -151,7 +151,6 @@ async function load() {
     const d = await dashboard.get(todayISO());
     renderKpis(d); renderWeek(d.days); renderGoals(d.goal_progress); renderRecent(d.recent_workouts);
     renderNetwork(d.network_top, d.network_note); renderFeed(d.feed);
-    if (d.today.sleep_hours !== null && document.activeElement !== checkin.sleep_hours) checkin.sleep_hours.value = d.today.sleep_hours;
     if (d.today.water_l !== null && document.activeElement !== checkin.water_l) checkin.water_l.value = d.today.water_l;
   } catch (err) { toast(err.message, 'error'); }
 }

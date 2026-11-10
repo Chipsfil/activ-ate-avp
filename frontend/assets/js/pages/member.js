@@ -6,7 +6,7 @@ await initPage('community');
 const id = new URLSearchParams(location.search).get('id');
 if (!id) location.replace('community.html');
 const state = { habit: 'exercise', period: 'week' };
-const UNIT = { exercise: 'min', sleep: 'h', water: 'L' };
+const UNIT = { exercise: 'min', water: 'L' };
 const PERIOD = { week: 'this week', month: 'last 30 days', all: 'all time' };
 
 async function load() {
@@ -29,7 +29,7 @@ function render(d) {
       <span class="avatar avatar--lg" style="background:#FDE1CF;color:#7A3309">${esc(m.initials)}</span>
       <div><h1>${esc(m.display_name)}</h1><p class="lead">In your network · ${m.sports.map(esc).join(', ')}</p></div>
     </div>`;
-  const habitName = { exercise: 'Exercise', sleep: 'Sleep', water: 'Water' }[d.habit];
+  const habitName = { exercise: 'Exercise', water: 'Water' }[d.habit];
   $('#member-summary').innerHTML = `
     <div class="stack" style="gap:4px"><span class="kpi-label">Joined</span><span class="num" style="font-size:22px">${formatDate(m.joined, { month: 'short', year: 'numeric' })}</span></div>
     <div class="stack" style="gap:4px"><span class="kpi-label">Current streak · ${habitName}</span><span class="num" style="font-size:22px">${m.streak} days</span></div>

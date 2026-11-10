@@ -56,9 +56,9 @@ Or create a new account through the onboarding. To reset all demo data run in th
 
 ### What changed compared to the clickable prototype
 - **Community = automatic network.** Users are matched by height, weight, age and main goal. No "add friend", no friend requests, no messaging. The only interaction is **cheering** a member who reached a goal.
-- **No "share your data" step** in onboarding. Exercise minutes, workouts, streaks, sleep and water are shared with the network automatically; meals and body weight stay private (shown to the user in onboarding and on the Goals page).
+- **No "share your data" step** in onboarding. Exercise minutes, workouts, streaks and water are shared with the network automatically; meals and body weight stay private (shown to the user in onboarding and on the Goals page).
 - **Sports are typed with autocomplete** (onboarding, goals, workout logging). Users can also keep their own text if a sport is not in the list. The list comes from `GET /sports` – later ~1000 sports with calories per minute; seed data in `assets/data/sports.json`.
-- **Daily check-in** for sleep and water on the dashboard (needed for the sleep/water comparison).
+- **Daily check-in** for water on the dashboard (needed for the water comparison).
 - Onboarding has 3 steps: About you → Goals & sports → Targets.
 
 ---

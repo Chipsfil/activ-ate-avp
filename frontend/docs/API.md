@@ -107,7 +107,6 @@ At least one goal and one sport (422). Sets `onboarding_step` 2 → 3. `200 { go
 { "goals": ["gain_muscle"], "sports": [ … ],
   "activity_goals": [{ "id": "ag1", "sport": "Weightlifting", "sport_id": "weightlifting", "minutes_per_session": 60, "sessions_per_week": 4 }],
   "nutrition_goals": [{ "nutrient": "protein", "amount": 140, "unit": "g" }],
-  "sleep_goal_h": 8,
   "weight_goal": { "start_kg": 62.5, "target_kg": 67, "target_date": "2027-02-01", "current_kg": 64 },
   "current_weight_kg": 64,
   "computed_defaults": { "kcal": 2350, "protein_g": 115 } }
@@ -120,7 +119,7 @@ All keys optional; only sent keys are replaced.
 { "goals": ["gain_muscle"], "sports": [ … ],
   "activity_goals": [{ "sport": "Running", "sport_id": "running", "minutes_per_session": 20, "sessions_per_week": 7 }],
   "nutrition_goals": [{ "nutrient": "protein", "amount": 200 }],
-  "sleep_goal_h": 8, "current_weight_kg": 64.5,
+  "current_weight_kg": 64.5,
   "weight_goal": { "target_kg": 67, "target_date": "2027-02-01" } }
 ```
 `weight_goal: null` removes it. A changed `current_weight_kg` inserts a new `body_weights` row (history is kept).
@@ -159,7 +158,7 @@ Search should also match aliases (e.g. "gym" → Weightlifting, "unihockey" → 
   "week": { "minutes": 127, "target_minutes": 300, "sessions_done": 3, "sessions_planned": 7 },
   "days": [{ "date": "2026-10-12", "minutes": 0 }, …, { "date": "2026-10-18", "minutes": null }],
   "today": { "kcal": 1520, "kcal_target": 2600, "protein_g": 100, "protein_target_g": 140,
-             "sleep_hours": 7.5, "water_l": 0.5, "water_target_l": 2, "sleep_target_h": 8 },
+             "water_l": 0.5, "water_target_l": 2 },
   "streak": { "current": 14, "best": 14 },
   "goal_progress": [{ "kind": "activity", "label": "Weightlifting · 60 min · 4×/week", "done": 1, "target": 4, "unit": "sessions" },
                     { "kind": "nutrition", "label": "Protein · 140 g · daily", "done": 1, "target": 6, "unit": "days" }],
@@ -170,7 +169,7 @@ Search should also match aliases (e.g. "gym" → Weightlifting, "unihockey" → 
 ```
 `days[].minutes` is `null` for future days.
 
-### `PUT /daily-logs` (sleep & water check-in)
+### `PUT /daily-logs` (water check-in)
 Returns `501 { "message": "Not implemented in the backend" }`.
 
 ---
@@ -264,14 +263,14 @@ The dashboard's "Add to my plan" creates `POST /workouts` with `status: "planned
 
 Users are **assigned automatically** to a network of similar people (BACKEND.md › Network assignment).
 There is no friend request, no search for other users and no messaging. The only social action is a **cheer**
-for a member who reached their goal. Habits: `exercise | sleep | water`.
+for a member who reached their goal. Habits: `exercise | water`.
 
 ### `GET /community/network`
 ```json
 { "id": "net-4rhtlq", "member_count": 8,
   "criteria": [{ "label": "Height", "value": "170–179 cm" }, …],
   "explanation": "You were matched automatically with people of similar height, weight, age and main goal…",
-  "shared_data": ["Exercise minutes", "Workout type and duration", "Streaks", "Sleep hours", "Water intake"] }
+  "shared_data": ["Exercise minutes", "Workout type and duration", "Streaks", "Water intake"] }
 ```
 
 ### `GET /community/leaderboard?habit=exercise&period=week`
@@ -284,26 +283,26 @@ for a member who reached their goal. Habits: `exercise | sleep | water`.
   "summary": { "my_rank": 5, "member_count": 8, "top_streak": { "days": 9, "display_name": "Sam R." },
                "gap_to_first": 195, "gap_unit": "min" } }
 ```
-- `value`: exercise = minutes this week; sleep = hours this week; water = liters this week.
-- `target`: exercise = weekly target; sleep/water = daily target × days elapsed this week.
-- Ranking: exercise and water by `value`, sleep by `streak` (then value).
-- `vs_me`: difference to the current user (sleep: streak days). `null` on the user's own row.
+- `value`: exercise = minutes this week; water = liters this week.
+- `target`: exercise = weekly target; water = daily target × days elapsed this week.
+- Ranking: exercise and water by `value`.
+- `vs_me`: difference to the current user. `null` on the user's own row.
 - `can_cheer = !is_me && goal_reached && !cheered_by_me`.
 - The current user's row has `member_id: "me"`. Display names are `First L.` only.
 
-### `GET /community/members/{member_id}?habit=sleep&period=week|month|all`
+### `GET /community/members/{member_id}?habit=water&period=week|month|all`
 404 if the member is not in the user's network.
 ```json
 { "member": { "id": "net-…-3", "display_name": "David Lehmann", "initials": "DL", "joined": "2025-01-01",
               "sports": ["Running", "Cycling"], "rank": 1, "streak": 30 },
-  "habit": "sleep", "period": "week", "unit": "h",
-  "targets": { "member": "8 h / night", "me": "8 h / night" },
-  "totals": { "member": 40.7, "me": 38.2 },
-  "log": [{ "date": "2026-10-17", "label": null, "value": 8.2, "unit": "h", "met": true },
-          { "date": "2026-10-16", "label": "Running", "value": 45, "unit": "min", "met": null }],
+  "habit": "water", "period": "week", "unit": "L",
+  "targets": { "member": "2 L / day", "me": "2 L / day" },
+  "totals": { "member": 12.7, "me": 11.2 },
+  "log": [{ "date": "2026-10-17", "label": null, "value": 2.2, "unit": "L", "met": true },
+          { "date": "2026-10-16", "label": null, "value": 1.8, "unit": "L", "met": false }],
   "goal_reached": true, "cheered_by_me": false, "cheer_count": 2, "can_cheer": true }
 ```
-`log`: last 8 entries – exercise: sport + minutes (only workouts, no notes); sleep/water: value + `met`.
+`log`: last 8 entries – exercise: sport + minutes (only workouts, no notes); water: value + `met`.
 
 ### `POST /community/members/{member_id}/cheers`
 `{ "habit": "exercise" }` → `201 { "cheered": true, "cheer_count": 4 }`

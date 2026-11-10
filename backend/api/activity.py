@@ -233,7 +233,7 @@ def dashboard():
     start = week_start(day)
     with conn() as connection:
         log = connection.execute(
-            "SELECT sleep_hours,water_l FROM daily_logs WHERE user_id=%s AND log_date=%s",
+            "SELECT water_l FROM daily_logs WHERE user_id=%s AND log_date=%s",
             (g.user_id, day),
         ).fetchone()
         today_sessions = connection.execute(
@@ -267,7 +267,7 @@ def dashboard():
         streak = streak_summary(connection, g.user_id)
     return {
         "date": iso(day),
-        "checkin": dict(log) if log else {"sleep_hours": None, "water_l": None},
+        "checkin": dict(log) if log else {"water_l": None},
         "today": {
             "minutes": sum(
                 item["minutes"] or 0 for item in days if item["date"] == iso(day)

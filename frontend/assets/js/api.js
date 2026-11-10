@@ -140,7 +140,7 @@ export const sports = {
 /* ------------------------------------------------------------- Dashboard */
 export const dashboard = {
   get: (date) => get('/dashboard', { date }),
-  saveDailyLog: (payload) => put('/daily-logs', payload),      // { date, sleep_hours?, water_l? }
+  saveDailyLog: (payload) => put('/daily-logs', payload),      // { date, water_l? }
 };
 
 /* -------------------------------------------------------------- Workouts */

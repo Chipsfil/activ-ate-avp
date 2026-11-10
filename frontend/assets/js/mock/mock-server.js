@@ -183,7 +183,6 @@ function membersOf(net) {
 }
 const HABITS = {
   exercise: { unit: 'min', label: 'Exercise minutes' },
-  sleep: { unit: 'h', label: 'Sleep' },
   water: { unit: 'L', label: 'Water' },
 };
 function memberStats(m, habit) {
@@ -194,12 +193,6 @@ function memberStats(m, habit) {
     const target = [150, 200, 240, 300][Math.floor(r() * 4)];
     const value = Math.round(target * (0.45 + r() * 0.85) * Math.min(1, (elapsed + 2) / 7));
     return { value, target, daily_target: Math.round(target / 7), streak: Math.floor(r() * 12), change_pct: Math.round((r() - 0.4) * 40), active_today: r() > 0.5, goal_reached: value >= target };
-  }
-  if (habit === 'sleep') {
-    const per = [7.5, 8, 8][Math.floor(r() * 3)];
-    const avg = 6.6 + r() * 1.8;
-    const value = round1(avg * elapsed);
-    return { value, target: round1(per * elapsed), daily_target: per, streak: Math.floor(r() * 35), change_pct: Math.round((r() - 0.4) * 20), active_today: r() > 0.4, goal_reached: avg >= per };
   }
   const per = [2, 2, 2.5][Math.floor(r() * 3)];
   const avg = 1.4 + r() * 1.5;
@@ -217,11 +210,6 @@ function myStats(u, habit) {
     const target = weeklyTarget(u);
     const prev = minutesBetween(u, addDays(ws, -7), addDays(ws, -7 + elapsed - 1));
     return { value, target, daily_target: Math.round(target / 7), streak: st, change_pct: prev ? Math.round(((value - prev) / prev) * 100) : 0, active_today: doneWorkouts(u).some((w) => w.performed_on === today()), goal_reached: value >= target };
-  }
-  if (habit === 'sleep') {
-    const per = u.sleep_goal_h || 8;
-    const value = round1(logs.reduce((s, l) => s + (l.sleep_hours || 0), 0));
-    return { value, target: round1(per * elapsed), daily_target: per, streak: habitStreak(u, 'sleep_hours', per), change_pct: 0, active_today: !!logOn(u, today()), goal_reached: value >= per * elapsed };
   }
   const per = t.water_l;
   const value = round1(logs.reduce((s, l) => s + (l.water_l || 0), 0));
@@ -246,11 +234,11 @@ function leaderboard(u, habit) {
   const net = ensureNetwork(u);
   const me = { member_id: 'me', display_name: 'You', initials: initialsOf(u), is_me: true, ...myStats(u, habit) };
   const rows = [me, ...membersOf(net).map((m) => ({ member_id: m.id, display_name: m.display_name, initials: m.initials, is_me: false, ...memberStats(m, habit) }))];
-  const key = (r) => (habit === 'sleep' ? r.streak * 1000 + r.value : r.value);
+  const key = (r) => r.value;
   rows.sort((a, b) => key(b) - key(a));
   rows.forEach((r, i) => {
     r.rank = i + 1;
-    r.vs_me = r.is_me ? null : (habit === 'sleep' ? r.streak - me.streak : round1(r.value - me.value));
+    r.vs_me = r.is_me ? null : round1(r.value - me.value);
     r.cheered_by_me = r.is_me ? false : cheeredByMe(u, r.member_id, habit);
     r.cheer_count = cheerCount(r.member_id, habit);
     r.can_cheer = !r.is_me && r.goal_reached && !r.cheered_by_me;
@@ -293,7 +281,7 @@ route('POST', '/auth/register', ({ body }) => {
     id: uid('u-'), username: body.username.trim(), email: body.email.trim(), password: body.password,
     first_name: body.first_name.trim(), last_name: body.last_name.trim(), gender: body.gender, date_of_birth: body.date_of_birth,
     height_cm: Number(body.height_cm), created_at: new Date().toISOString(), onboarding_step: 2,
-    goals: [], sports: [], activity_goals: [], nutrition_goals: [], sleep_goal_h: 8, weight_goal: null, network_id: null,
+    goals: [], sports: [], activity_goals: [], nutrition_goals: [], weight_goal: null, network_id: null,
   };
   db().users.push(u);
   db().weights.push({ user_id: u.id, weight_kg: Number(body.weight_kg), measured_on: today() });
@@ -337,7 +325,6 @@ function targetsOut(u) {
     goals: u.goals, sports: u.sports,
     activity_goals: u.activity_goals,
     nutrition_goals: (u.nutrition_goals || []).map((n) => ({ ...n, unit: NUTRIENTS[n.nutrient] })),
-    sleep_goal_h: u.sleep_goal_h || 8,
     weight_goal: u.weight_goal ? { ...u.weight_goal, current_kg: currentWeight(u) } : null,
     current_weight_kg: currentWeight(u),
     computed_defaults: { kcal: defaultKcal(u), protein_g: nutritionTargets({ ...u, nutrition_goals: [] }).protein_g },
@@ -365,7 +352,6 @@ route('PUT', '/me/targets', async ({ user, body }) => {
   if (body.nutrition_goals) {
     user.nutrition_goals = body.nutrition_goals.filter((n) => NUTRIENTS[n.nutrient] && Number(n.amount) > 0).map((n) => ({ nutrient: n.nutrient, amount: Number(n.amount) }));
   }
-  if (body.sleep_goal_h) user.sleep_goal_h = Number(body.sleep_goal_h);
   if (body.current_weight_kg && Number(body.current_weight_kg) !== currentWeight(user)) {
     const w = Number(body.current_weight_kg);
     if (!(w >= 30 && w <= 300)) fail(422, 'validation_error', 'Weight must be between 30 and 300 kg.', 'current_weight_kg');
@@ -448,7 +434,7 @@ route('GET', '/dashboard', ({ user, q }) => {
     date,
     week: weekSummary(user),
     days,
-    today: { kcal: tot.kcal, kcal_target: t.kcal, protein_g: tot.protein_g, protein_target_g: t.protein_g, sleep_hours: log.sleep_hours ?? null, water_l: log.water_l ?? null, water_target_l: t.water_l, sleep_target_h: user.sleep_goal_h || 8 },
+    today: { kcal: tot.kcal, kcal_target: t.kcal, protein_g: tot.protein_g, protein_target_g: t.protein_g, water_l: log.water_l ?? null, water_target_l: t.water_l },
     streak: streak(user),
     goal_progress: goalProgress(user),
     recent_workouts: doneWorkouts(user).sort(byDateDesc).slice(0, 4).map(workoutOut),
@@ -463,16 +449,12 @@ route('PUT', '/daily-logs', ({ user, body }) => {
   const date = body.date || today();
   if (date > today()) fail(422, 'validation_error', 'You cannot log a future day.', 'date');
   let l = logOn(user, date);
-  if (!l) { l = { user_id: user.id, log_date: date, sleep_hours: null, water_l: null }; db().daily_logs.push(l); }
-  if (body.sleep_hours !== undefined && body.sleep_hours !== null && body.sleep_hours !== '') {
-    const s = Number(body.sleep_hours); if (!(s >= 0 && s <= 16)) fail(422, 'validation_error', 'Sleep must be between 0 and 16 hours.', 'sleep_hours');
-    l.sleep_hours = round1(s);
-  }
+  if (!l) { l = { user_id: user.id, log_date: date, water_l: null }; db().daily_logs.push(l); }
   if (body.water_l !== undefined && body.water_l !== null && body.water_l !== '') {
     const w = Number(body.water_l); if (!(w >= 0 && w <= 10)) fail(422, 'validation_error', 'Water must be between 0 and 10 liters.', 'water_l');
     l.water_l = round1(w);
   }
-  return { date, sleep_hours: l.sleep_hours, water_l: l.water_l };
+  return { date, water_l: l.water_l };
 });
 
 /* ================================================================ RECOMMENDATIONS (mock AI) */
@@ -660,7 +642,7 @@ route('GET', '/community/network', ({ user }) => {
   return {
     id: net.id, member_count: 8, criteria: net.criteria,
     explanation: 'You were matched automatically with people of similar height, weight, age and main goal, so comparisons are fair. Your network is updated when your profile changes a lot.',
-    shared_data: ['Exercise minutes', 'Workout type and duration', 'Streaks', 'Sleep hours', 'Water intake'],
+    shared_data: ['Exercise minutes', 'Workout type and duration', 'Streaks', 'Water intake'],
   };
 });
 route('GET', '/community/leaderboard', ({ user, q }) => {
@@ -670,13 +652,13 @@ route('GET', '/community/leaderboard', ({ user, q }) => {
   const first = rows[0];
   return {
     habit, unit: HABITS[habit].unit, period: 'week',
-    target_label: habit === 'exercise' ? 'Weekly target' : habit === 'sleep' ? 'Hours per night' : 'Liters per day',
+    target_label: habit === 'exercise' ? 'Weekly target' : 'Liters per day',
     rows,
     summary: {
       my_rank: me.rank, member_count: rows.length,
       top_streak: { days: top.streak, display_name: top.display_name },
-      gap_to_first: first.is_me ? 0 : (habit === 'sleep' ? first.streak - me.streak : round1(first.value - me.value)),
-      gap_unit: habit === 'sleep' ? 'streak days' : HABITS[habit].unit,
+      gap_to_first: first.is_me ? 0 : round1(first.value - me.value),
+      gap_unit: HABITS[habit].unit,
     },
   };
 });
@@ -696,7 +678,7 @@ route('GET', '/community/members/:id', ({ user, params, q }) => {
   if (period !== 'week') {
     const from = period === 'month' ? addDays(today(), -29) : (user.created_at || '2025-01-01').slice(0, 10);
     if (habit === 'exercise') myTotal = minutesBetween(user, from, today());
-    else myTotal = round1(db().daily_logs.filter((l) => l.user_id === user.id && l.log_date >= from).reduce((s, l) => s + (l[habit === 'sleep' ? 'sleep_hours' : 'water_l'] || 0), 0));
+    else myTotal = round1(db().daily_logs.filter((l) => l.user_id === user.id && l.log_date >= from).reduce((s, l) => s + (l.water_l || 0), 0));
   }
   const unit = HABITS[habit].unit;
   const log = Array.from({ length: 8 }, (_, i) => {
@@ -704,10 +686,10 @@ route('GET', '/community/members/:id', ({ user, params, q }) => {
     const rr = rng(m.id + habit + date);
     if (habit === 'exercise') return { date, label: m.sports[Math.floor(rr() * m.sports.length)], value: 20 + Math.round(rr() * 60), unit: 'min', met: null };
     const per = row.daily_target;
-    const v = habit === 'sleep' ? round1(6.4 + rr() * 2.2) : round1(1.4 + rr() * 1.6);
+    const v = round1(1.4 + rr() * 1.6);
     return { date, label: null, value: v, unit, met: v >= per };
   });
-  const fmtT = (s) => (habit === 'exercise' ? `${s.target} min / week` : habit === 'sleep' ? `${s.daily_target} h / night` : `${s.daily_target} L / day`);
+  const fmtT = (s) => (habit === 'exercise' ? `${s.target} min / week` : `${s.daily_target} L / day`);
   return {
     member: { id: m.id, display_name: m.username, initials: m.initials, joined: m.joined, sports: m.sports, rank: row.rank, streak: row.streak },
     habit, period, unit,
@@ -733,8 +715,7 @@ route('GET', '/community/insights', ({ user, q }) => {
   const items = [];
   if (me.rank > 1) {
     const first = rows[0];
-    if (habit === 'sleep') items.push({ text: `${first.display_name} leads with a ${first.streak}-day sleep streak. ${Math.max(1, first.streak - me.streak)} more nights on target and you catch up.`, action: null });
-    else items.push({ text: `${first.display_name} is ahead by ${round1(first.value - me.value)} ${unit} this week. ${habit === 'exercise' ? 'One more session brings you closer to first place.' : 'One extra glass per day closes the gap.'}`, action: null });
+    items.push({ text: `${first.display_name} is ahead by ${round1(first.value - me.value)} ${unit} this week. ${habit === 'exercise' ? 'One more session brings you closer to first place.' : 'One extra glass per day closes the gap.'}`, action: null });
   } else items.push({ text: 'You lead your network this week – keep the rhythm!', action: null });
   rows.filter((r) => r.can_cheer).slice(0, 2).forEach((r) => items.push({ text: `${r.display_name} reached the ${HABITS[habit].label.toLowerCase()} goal. A cheer takes one click and keeps the whole network motivated.`, action: 'cheer', member_id: r.member_id }));
   const improver = rows.filter((r) => !r.is_me).sort((a, b) => b.change_pct - a.change_pct)[0];
@@ -744,10 +725,10 @@ route('GET', '/community/insights', ({ user, q }) => {
 
 function feedItems(user, limit) {
   const items = [];
-  ['exercise', 'sleep', 'water'].forEach((habit) => {
+  ['exercise', 'water'].forEach((habit) => {
     const { rows } = leaderboard(user, habit);
     rows.filter((r) => !r.is_me && r.goal_reached).forEach((r) => {
-      const text = habit === 'exercise' ? `reached the weekly exercise goal (${r.value} min)` : habit === 'sleep' ? `is on target with sleep every night this week` : `hit the water goal every day this week`;
+      const text = habit === 'exercise' ? `reached the weekly exercise goal (${r.value} min)` : `hit the water goal every day this week`;
       items.push({ id: `${r.member_id}-${habit}`, member_id: r.member_id, display_name: r.display_name, initials: r.initials, habit, text, cheered_by_me: r.cheered_by_me, cheer_count: r.cheer_count, can_cheer: r.can_cheer });
     });
   });
@@ -760,11 +741,9 @@ route('GET', '/feed', ({ user, q }) => ({ items: feedItems(user, Math.min(30, Nu
 function coachCtx(user) {
   const t = nutritionTargets(user); const tot = dayTotals(user, today());
   const { rows, me } = leaderboard(user, 'exercise');
-  const logs = db().daily_logs.filter((l) => l.user_id === user.id && l.log_date >= addDays(today(), -7) && l.sleep_hours);
   return {
     proteinTarget: t.protein_g, proteinToday: tot.protein_g, kcalTarget: t.kcal, kcalToday: tot.kcal,
     activityGoals: user.activity_goals || [], targetMinutes: weeklyTarget(user), weekMinutes: weekSummary(user).minutes,
-    sleepAvg: logs.length ? round1(logs.reduce((s, l) => s + l.sleep_hours, 0) / logs.length) : null, sleepTarget: user.sleep_goal_h || 8,
     rank: me.rank, networkSize: rows.length,
     gapText: me.rank === 1 ? 'You lead – great job!' : `${rows[0].display_name} leads with ${rows[0].value} min; ${Math.round(rows[0].value - me.value)} more minutes would put you in first place.`,
     currentKg: currentWeight(user), targetKg: user.weight_goal?.target_kg ?? null,
