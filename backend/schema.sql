@@ -119,3 +119,16 @@ CREATE TABLE IF NOT EXISTS chat_messages (
   role text NOT NULL, content text NOT NULL, 
   created_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- Apply this file again to add nutrition support to an existing database.
+ALTER TABLE meals ADD COLUMN IF NOT EXISTS items jsonb NOT NULL DEFAULT '[]'::jsonb;
+CREATE TABLE IF NOT EXISTS meal_estimates (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  status text NOT NULL DEFAULT 'processing',
+  items jsonb,
+  totals jsonb,
+  totals_edited boolean,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS meal_estimates_user_date ON meal_estimates(user_id, created_at);

@@ -206,7 +206,19 @@ $('#nut-list').addEventListener('click', (e) => {
 });
 $('#nut-kind').addEventListener('change', () => { $('#nut-unit').textContent = UNITS[$('#nut-kind').value]; });
 $('#add-nut').addEventListener('click', () => {
-  toast('Nutrition is not implemented', 'error');
+  const nutrient = $('#nut-kind').value;
+  const input = $('#nut-amount');
+  const amount = Number(input.value);
+  if (!input.value.trim() || !Number.isFinite(amount) || amount < 0.01 || amount > 999999.99) {
+    toast('Enter an amount between 0.01 and 999999.99.', 'error');
+    input.focus();
+    return;
+  }
+  const existing = state.nuts.find((goal) => goal.nutrient === nutrient);
+  if (existing) existing.amount = amount;
+  else state.nuts.push({ nutrient, amount });
+  input.value = '';
+  renderNuts();
 });
 $('#back-3').addEventListener('click', () => showStep(2));
 
@@ -230,7 +242,9 @@ f3.addEventListener('submit', async (e) => {
     $('#step-title').textContent = 'Welcome to Activ-Ate';
     $('#step-sub').textContent = 'Your account and plan are ready.';
     $$('#stepper li').forEach((li) => { li.className = 'done'; });
-    $('#network-text').textContent = `We matched you with a network of ${network.member_count} people with a similar profile. You can compare your progress and cheer each other on.`;
-    $('#network-criteria').innerHTML = network.criteria.map((c) => `<span class="chip" style="cursor:default">${esc(c.label)}: ${esc(c.value)}</span>`).join('');
+    $('#network-text').textContent = network.criteria?.length
+      ? `We matched you with a network of ${network.member_count} people with a similar profile. You can compare your progress and cheer each other on.`
+      : 'Your plan is ready. You can view your progress on the dashboard.';
+    $('#network-criteria').innerHTML = (network.criteria || []).map((c) => `<span class="chip" style="cursor:default">${esc(c.label)}: ${esc(c.value)}</span>`).join('');
   } catch (err) { showError(f3, err); } finally { setBusy(btn, false); }
 });

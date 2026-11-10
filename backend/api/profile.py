@@ -1,12 +1,14 @@
 """Profile details, onboarding, and activity targets."""
 
 from datetime import date
+import math
 
 from flask import Blueprint, g
 
 from .common import auth_required, body, conn, current_weight, err, user_json
 
 bp = Blueprint("profile", __name__)
+NUTRIENT_UNITS = {"calories": "kcal", "protein": "g", "carbs": "g", "fat": "g", "fiber": "g", "sugar": "g", "water": "L"}
 
 
 def valid_sport_ids(connection, sports):
@@ -91,7 +93,8 @@ def get_targets():
             (g.user_id,),
         ).fetchall()
         weight = current_weight(connection, g.user_id)
-    # Nutrition and weight goals keep their current empty placeholder values.
+        nutrition_goals = connection.execute("SELECT nutrient,amount FROM nutrition_goals WHERE user_id=%s ORDER BY nutrient", (g.user_id,)).fetchall()
+    # Weight goals keep their current empty placeholder value.
     return {
         "goals": [row["goal"] for row in user_goals],
         "sports": [
@@ -107,7 +110,7 @@ def get_targets():
             }
             for row in goals
         ],
-        "nutrition_goals": [],
+        "nutrition_goals": [{"nutrient": row["nutrient"], "amount": float(row["amount"]), "unit": NUTRIENT_UNITS[row["nutrient"]]} for row in nutrition_goals if row["nutrient"] in NUTRIENT_UNITS],
         "weight_goal": None,
         "current_weight_kg": weight,
     }
@@ -118,8 +121,18 @@ def get_targets():
 def save_targets():
     values = body()
     goals = values.get("activity_goals", [])
-    if values.get("nutrition_goals"):
-        return err("Nutrition is not implemented in the backend", "not_implemented", 501)
+    if "nutrition_goals" in values:
+        nutrition = values["nutrition_goals"]
+        if not isinstance(nutrition, list):
+            return err("Nutrition goals must be a list.", field="nutrition_goals")
+        seen = set()
+        for goal in nutrition:
+            if not isinstance(goal, dict) or goal.get("nutrient") not in NUTRIENT_UNITS or goal["nutrient"] in seen:
+                return err("Invalid or duplicate nutrition goal.", field="nutrition_goals")
+            amount = goal.get("amount")
+            if isinstance(amount, bool) or not isinstance(amount, (int, float)) or not math.isfinite(amount) or not 0 < amount <= 999999.99:
+                return err("Nutrition goal amounts must be positive numbers.", field="nutrition_goals")
+            seen.add(goal["nutrient"])
     if values.get("weight_goal") is not None:
         return err("Weight goals are not implemented yet.", "not_implemented", 501)
     # Only validate weight when the request includes a new weight value.
@@ -157,29 +170,34 @@ def save_targets():
             replace_preferences(
                 connection, g.user_id, values["goals"], values["sports"]
             )
-        # The submitted activity goals replace the entire previous activity-goal list.
-        activity_sport_ids = valid_sport_ids(connection, goals)
-        connection.execute("DELETE FROM activity_goals WHERE user_id=%s", (g.user_id,))
-        goal_rows = []
-        for goal in goals:
-            sport_id = goal.get("sport_id")
-            if sport_id not in activity_sport_ids:
-                sport_id = None
-            goal_rows.append(
-                (
-                    g.user_id,
-                    sport_id,
-                    goal["sport"],
-                    goal["minutes_per_session"],
-                    goal["sessions_per_week"],
+        if "activity_goals" in values:
+            # The submitted activity goals replace the entire previous activity-goal list.
+            activity_sport_ids = valid_sport_ids(connection, goals)
+            connection.execute("DELETE FROM activity_goals WHERE user_id=%s", (g.user_id,))
+            goal_rows = []
+            for goal in goals:
+                sport_id = goal.get("sport_id")
+                if sport_id not in activity_sport_ids:
+                    sport_id = None
+                goal_rows.append(
+                    (
+                        g.user_id,
+                        sport_id,
+                        goal["sport"],
+                        goal["minutes_per_session"],
+                        goal["sessions_per_week"],
+                    )
                 )
-            )
-        with connection.cursor() as cursor:
-            cursor.executemany(
-                "INSERT INTO activity_goals(user_id,sport_id,sport_name,minutes_per_session,sessions_per_week) "
-                "VALUES(%s,%s,%s,%s,%s)",
-                goal_rows,
-            )
+            with connection.cursor() as cursor:
+                cursor.executemany(
+                    "INSERT INTO activity_goals(user_id,sport_id,sport_name,minutes_per_session,sessions_per_week) "
+                    "VALUES(%s,%s,%s,%s,%s)",
+                    goal_rows,
+                )
+        if "nutrition_goals" in values:
+            connection.execute("DELETE FROM nutrition_goals WHERE user_id=%s", (g.user_id,))
+            with connection.cursor() as cursor:
+                cursor.executemany("INSERT INTO nutrition_goals(user_id,nutrient,amount) VALUES(%s,%s,%s)", [(g.user_id, goal["nutrient"], goal["amount"]) for goal in nutrition])
         # Advance onboarding without moving an already completed user back a step.
         connection.execute(
             "UPDATE users SET onboarding_step='4' "

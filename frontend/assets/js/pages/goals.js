@@ -56,7 +56,7 @@ function renderNuts() {
   const rows = s.nutrition_goals.map((n, i) => `
     <div class="goal-row">
       <span class="grow"><b>${NUT[n.nutrient].verb} ${esc(n.amount)} ${NUT[n.nutrient].unit}${n.nutrient === 'calories' ? '' : ' ' + NUT[n.nutrient].label.toLowerCase()} every day</b></span>
-      <label class="row small muted" style="gap:6px"><span class="sr-only">${NUT[n.nutrient].label} amount</span><input class="input" type="number" min="0" step="0.1" value="${esc(n.amount)}" data-nut="${i}" style="width:100px;min-height:40px">${NUT[n.nutrient].unit}</label>
+      <label class="row small muted" style="gap:6px"><span class="sr-only">${NUT[n.nutrient].label} amount</span><input class="input" type="number" min="0.01" max="999999.99" step="any" value="${esc(n.amount)}" data-nut="${i}" style="width:100px;min-height:40px">${NUT[n.nutrient].unit}</label>
       <button type="button" class="btn btn--icon btn--small" data-rm-nut="${i}" aria-label="Remove goal">×</button>
     </div>`);
   $('#nuts').innerHTML = rows.join('');
@@ -123,7 +123,10 @@ $('#nuts').addEventListener('click', (e) => {
 });
 $('#nut-add').addEventListener('click', (e) => {
   const b = e.target.closest('[data-add-nut]'); if (!b) return;
-  toast('Nutrition is not implemented', 'error');
+  const nutrient = b.dataset.addNut;
+  if (!NUT[nutrient] || s.nutrition_goals.some((n) => n.nutrient === nutrient)) return;
+  s.nutrition_goals.push({ nutrient, amount: NUT[nutrient].def });
+  renderNuts(); markDirty();
 });
 ['#cur-kg', '#target-kg', '#target-date'].forEach((id) => $(id).addEventListener('input', () => { renderWeight(); markDirty(); }));
 
@@ -143,6 +146,9 @@ const check = debounce(async () => {
 /* ----------------------------------------------------------- Save */
 saveBtn.addEventListener('click', async () => {
   if (!s.goals.length) { toast('Please keep at least one main goal.', 'error'); return; }
+  if (s.nutrition_goals.some((n) => !Number.isFinite(n.amount) || n.amount < 0.01 || n.amount > 999999.99)) {
+    toast('Nutrition amounts must be between 0.01 and 999999.99.', 'error'); return;
+  }
   setBusy(saveBtn, true, 'Saving…');
   try {
     const res = await meApi.saveTargets({
@@ -167,7 +173,7 @@ function load(t) {
   s.goals = Array.isArray(s.goals) ? s.goals : [];
   s.sports = Array.isArray(s.sports) ? s.sports : [];
   s.activity_goals = Array.isArray(s.activity_goals) ? s.activity_goals : [];
-  s.nutrition_goals = [];
+  s.nutrition_goals = Array.isArray(s.nutrition_goals) ? s.nutrition_goals.filter((n) => NUT[n.nutrient]) : [];
   s.weight_goal = null;
   $('#cur-kg').value = s.current_weight_kg;
   $('#target-kg').value = s.weight_goal?.target_kg ?? '';

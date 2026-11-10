@@ -43,7 +43,9 @@ Restart the backend after changing these settings. API usage is billed by the
 selected provider. Coach questions, the last 10 conversation messages, and
 your goals, sports, and weekly activity target are sent to that provider.
 The conversations are saved in PostgreSQL. Recommendation cards use the same
-profile details and make a new API request each time they are loaded.
+profile details and make a new API request each time they are loaded. Meal
+estimation sends the meal description and meal type to the selected provider;
+estimates are saved for review and are not logged as meals until confirmed.
 
 Create an empty database, then apply the schema and start the API:
 
@@ -51,6 +53,9 @@ Create an empty database, then apply the schema and start the API:
 psql "$DATABASE_URL" -f schema.sql
 python app.py
 ```
+
+For an existing database, rerun `psql "$DATABASE_URL" -f schema.sql` before
+using nutrition endpoints. This adds the meal items column and estimates table.
 
 The health endpoint is `http://127.0.0.1:8000/api/v1/health`.
 

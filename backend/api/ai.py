@@ -2,13 +2,17 @@
 
 import json
 
-from openai import APIError, OpenAI
+from openai import APIError, APITimeoutError, OpenAI
 from config import AI_PROVIDER, DEEPSEEK_API_KEY, DEEPSEEK_MODEL, OPENAI_API_KEY, OPENAI_MODEL
 
 from .common import user_json, weekly_target
 
 
 class AIError(Exception):
+    pass
+
+
+class AITimeout(AIError):
     pass
 
 
@@ -22,7 +26,7 @@ def context(connection, user_id):
     }
 
 
-def get_response(messages, json_output=False):
+def get_response(messages, json_output=False, timeout=30):
     """Send the messages to the selected model and return its answer."""
     # Select the API key and model for the provider chosen in .env.
     if AI_PROVIDER == "deepseek":
@@ -43,7 +47,7 @@ def get_response(messages, json_output=False):
         # and uses max_tokens instead of max_completion_tokens.
         if AI_PROVIDER == "deepseek":
             client = OpenAI(
-                api_key=api_key, base_url="https://api.deepseek.com", timeout=30, max_retries=0
+                api_key=api_key, base_url="https://api.deepseek.com", timeout=timeout, max_retries=0
             )
             response = client.chat.completions.create(
                 model=model,
@@ -52,7 +56,7 @@ def get_response(messages, json_output=False):
                 response_format=response_format,
             )
         else:
-            client = OpenAI(api_key=api_key, timeout=30, max_retries=0)
+            client = OpenAI(api_key=api_key, timeout=timeout, max_retries=0)
             response = client.chat.completions.create(
                 model=model,
                 messages=messages,
@@ -66,6 +70,8 @@ def get_response(messages, json_output=False):
         if json_output:
             return json.loads(answer)
         return answer
+    except APITimeoutError as error:
+        raise AITimeout("The AI service timed out.") from error
     except (APIError, ValueError, IndexError) as error:
         # Hide provider details and return a simple error to the API route.
         raise AIError("The AI service is unavailable. Please try again.") from error
