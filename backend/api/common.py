@@ -77,7 +77,7 @@ def user_json(connection, user_id):
     # Use the weight entry with the most recent measurement date.
     weight = connection.execute(
         "SELECT weight_kg FROM body_weights "
-        "WHERE user_id=%s ORDER BY measured_on DESC LIMIT 1",
+        "WHERE user_id=%s ORDER BY measured_on DESC, created_at DESC LIMIT 1",
         (user_id,),
     ).fetchone()
 
@@ -181,7 +181,7 @@ def parse_date(value, default=None):
 def current_weight(connection, user_id):
     row = connection.execute(
         "SELECT weight_kg FROM body_weights "
-        "WHERE user_id=%s ORDER BY measured_on DESC LIMIT 1",
+        "WHERE user_id=%s ORDER BY measured_on DESC, created_at DESC LIMIT 1",
         (user_id,),
     ).fetchone()
     if row:

@@ -71,11 +71,12 @@ function renderWeight() {
   if (!target) { $('#w-phrase').textContent = 'No weight goal'; $('#w-track').innerHTML = ''; $('#w-rate').textContent = 'Leave the target empty to only track activity.'; return; }
   const diff = Math.round((target - cur) * 10) / 10;
   $('#w-phrase').textContent = diff === 0 ? `Maintain ${fmt(cur, 1)} kg` : `${diff > 0 ? 'Gain' : 'Lose'} ${fmt(Math.abs(diff), 1)} kg → ${fmt(target, 1)} kg`;
-  const done = target === start ? 1 : (cur - start) / (target - start);
+  const done = target === start ? (cur === target ? 1 : 0) : (cur - start) / (target - start);
   $('#w-track').innerHTML = track(Math.max(0, Math.min(1, done)) * 100, 100, true, true);
   const date = $('#target-date').value;
-  const weeks = date ? Math.max(1, Math.round((new Date(date) - new Date(todayISO())) / (7 * 864e5))) : null;
-  $('#w-rate').textContent = `${Math.round(Math.max(0, Math.min(1, done)) * 100)} % of the way${weeks ? ` · ${weeks} weeks left` : ''}`;
+  const days = date ? Math.round((new Date(date) - new Date(todayISO())) / 864e5) : null;
+  const timing = days === null ? '' : days < 0 ? ' · target date passed' : days === 0 ? ' · target date is today' : ` · ${Math.ceil(days / 7)} weeks left`;
+  $('#w-rate').textContent = `${Math.round(Math.max(0, Math.min(1, done)) * 100)} % of the way${timing}`;
 }
 function renderAll() { renderMain(); renderSports(); renderActs(); renderNuts(); renderWeight(); }
 
@@ -174,7 +175,6 @@ function load(t) {
   s.sports = Array.isArray(s.sports) ? s.sports : [];
   s.activity_goals = Array.isArray(s.activity_goals) ? s.activity_goals : [];
   s.nutrition_goals = Array.isArray(s.nutrition_goals) ? s.nutrition_goals.filter((n) => NUT[n.nutrient]) : [];
-  s.weight_goal = null;
   $('#cur-kg').value = s.current_weight_kg;
   $('#target-kg').value = s.weight_goal?.target_kg ?? '';
   $('#target-date').value = s.weight_goal?.target_date ?? '';

@@ -55,7 +55,7 @@ python app.py
 ```
 
 For an existing database, rerun `psql "$DATABASE_URL" -f schema.sql` before
-using nutrition endpoints. This adds the meal items column and estimates table.
+using nutrition endpoints or weight goals. This adds the required tables and columns.
 
 The health endpoint is `http://127.0.0.1:8000/api/v1/health`.
 

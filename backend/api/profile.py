@@ -94,7 +94,7 @@ def get_targets():
         ).fetchall()
         weight = current_weight(connection, g.user_id)
         nutrition_goals = connection.execute("SELECT nutrient,amount FROM nutrition_goals WHERE user_id=%s ORDER BY nutrient", (g.user_id,)).fetchall()
-    # Weight goals keep their current empty placeholder value.
+        weight_goal = connection.execute("SELECT start_kg,target_kg,target_date FROM weight_goals WHERE user_id=%s", (g.user_id,)).fetchone()
     return {
         "goals": [row["goal"] for row in user_goals],
         "sports": [
@@ -111,7 +111,7 @@ def get_targets():
             for row in goals
         ],
         "nutrition_goals": [{"nutrient": row["nutrient"], "amount": float(row["amount"]), "unit": NUTRIENT_UNITS[row["nutrient"]]} for row in nutrition_goals if row["nutrient"] in NUTRIENT_UNITS],
-        "weight_goal": None,
+        "weight_goal": {"start_kg": float(weight_goal["start_kg"]), "target_kg": float(weight_goal["target_kg"]), "target_date": weight_goal["target_date"].isoformat() if weight_goal["target_date"] else None, "current_kg": weight} if weight_goal else None,
         "current_weight_kg": weight,
     }
 
@@ -133,8 +133,19 @@ def save_targets():
             if isinstance(amount, bool) or not isinstance(amount, (int, float)) or not math.isfinite(amount) or not 0 < amount <= 999999.99:
                 return err("Nutrition goal amounts must be positive numbers.", field="nutrition_goals")
             seen.add(goal["nutrient"])
-    if values.get("weight_goal") is not None:
-        return err("Weight goals are not implemented yet.", "not_implemented", 501)
+    weight_goal = values.get("weight_goal")
+    target_date = None
+    if weight_goal is not None:
+        if not isinstance(weight_goal, dict):
+            return err("Weight goal must be an object or null.", field="weight_goal")
+        target = weight_goal.get("target_kg")
+        if isinstance(target, bool) or not isinstance(target, (int, float)) or not math.isfinite(target) or not 30 <= target <= 300:
+            return err("Target weight must be between 30 and 300 kg.", field="target_kg")
+        if weight_goal.get("target_date") is not None:
+            try:
+                target_date = date.fromisoformat(weight_goal["target_date"])
+            except (TypeError, ValueError):
+                return err("Target date must be a valid date.", field="target_date")
     # Only validate weight when the request includes a new weight value.
     if "current_weight_kg" in values:
         try:
@@ -153,9 +164,18 @@ def save_targets():
     with conn() as connection:
         latest_weight = connection.execute(
             "SELECT weight_kg FROM body_weights "
-            "WHERE user_id=%s ORDER BY measured_on DESC LIMIT 1",
+            "WHERE user_id=%s ORDER BY measured_on DESC, created_at DESC LIMIT 1",
             (g.user_id,),
         ).fetchone()
+        if "weight_goal" in values and weight_goal is not None:
+            start = weight if "current_weight_kg" in values else (float(latest_weight["weight_kg"]) if latest_weight else None)
+            if start is None:
+                return err("Set a current weight before creating a weight goal.", field="current_weight_kg")
+            existing_goal = connection.execute(
+                "SELECT target_date FROM weight_goals WHERE user_id=%s", (g.user_id,)
+            ).fetchone()
+            if target_date and target_date <= date.today() and (not existing_goal or target_date != existing_goal["target_date"]):
+                return err("The target date must be in the future.", field="target_date")
         # Compare with the selected latest entry before adding another measurement.
         if "current_weight_kg" in values and (
             latest_weight is None or weight != float(latest_weight["weight_kg"])
@@ -198,6 +218,15 @@ def save_targets():
             connection.execute("DELETE FROM nutrition_goals WHERE user_id=%s", (g.user_id,))
             with connection.cursor() as cursor:
                 cursor.executemany("INSERT INTO nutrition_goals(user_id,nutrient,amount) VALUES(%s,%s,%s)", [(g.user_id, goal["nutrient"], goal["amount"]) for goal in nutrition])
+        if "weight_goal" in values:
+            if weight_goal is None:
+                connection.execute("DELETE FROM weight_goals WHERE user_id=%s", (g.user_id,))
+            else:
+                connection.execute(
+                    "INSERT INTO weight_goals(user_id,start_kg,target_kg,target_date) VALUES(%s,%s,%s,%s) "
+                    "ON CONFLICT (user_id) DO UPDATE SET target_kg=EXCLUDED.target_kg,target_date=EXCLUDED.target_date",
+                    (g.user_id, start, target, target_date),
+                )
         # Advance onboarding without moving an already completed user back a step.
         connection.execute(
             "UPDATE users SET onboarding_step='4' "

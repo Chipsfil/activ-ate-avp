@@ -25,7 +25,8 @@ CREATE TABLE IF NOT EXISTS body_weights (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(), 
   user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   weight_kg numeric(5,2) NOT NULL CHECK (weight_kg BETWEEN 30 AND 300), 
-  measured_on date NOT NULL
+  measured_on date NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS body_weights_user_date ON body_weights(user_id, measured_on DESC);
 CREATE TABLE IF NOT EXISTS sports (
@@ -132,3 +133,12 @@ CREATE TABLE IF NOT EXISTS meal_estimates (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS meal_estimates_user_date ON meal_estimates(user_id, created_at);
+
+-- Reapplying the schema upgrades existing installations.
+ALTER TABLE body_weights ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
+CREATE TABLE IF NOT EXISTS weight_goals (
+  user_id uuid PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  start_kg numeric(5,2) NOT NULL CHECK (start_kg BETWEEN 30 AND 300),
+  target_kg numeric(5,2) NOT NULL CHECK (target_kg BETWEEN 30 AND 300),
+  target_date date
+);

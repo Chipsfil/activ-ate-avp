@@ -375,7 +375,7 @@ route('PUT', '/me/targets', async ({ user, body }) => {
   else if (body.weight_goal && body.weight_goal.target_kg) {
     const t = Number(body.weight_goal.target_kg);
     if (!(t >= 30 && t <= 300)) fail(422, 'validation_error', 'Target weight must be between 30 and 300 kg.', 'target_kg');
-    if (body.weight_goal.target_date && body.weight_goal.target_date <= today()) fail(422, 'validation_error', 'The target date must be in the future.', 'target_date');
+    if (body.weight_goal.target_date && body.weight_goal.target_date <= today() && body.weight_goal.target_date !== user.weight_goal?.target_date) fail(422, 'validation_error', 'The target date must be in the future.', 'target_date');
     user.weight_goal = { start_kg: user.weight_goal?.start_kg ?? currentWeight(user), target_kg: t, target_date: body.weight_goal.target_date || null };
   }
   if (user.onboarding_step === 3) user.onboarding_step = 4;
