@@ -222,6 +222,8 @@ Backend computes `kcal` (BACKEND.md › Calories). `201 { "workout": Workout, "w
 ### `GET /nutrition/summary?date=2026-10-17`
 `200 { "date": "…", "totals": { "kcal": 1520, "protein_g": 100, "carbs_g": 188, "fat_g": 38 }, "targets": { "kcal": 2600, "protein_g": 140, "carbs_g": 314, "fat_g": 87 } }`
 
+Targets are `null` for nutrients without a saved goal.
+
 ### `GET /meals?date=2026-10-17` → `200 { "items": [Meal] }` (breakfast → lunch → snack → dinner)
 
 ### `POST /meals/estimate` — **AI**, step 1 of 2 (does NOT create a meal)

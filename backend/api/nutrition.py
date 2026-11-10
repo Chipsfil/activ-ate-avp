@@ -9,7 +9,7 @@ from flask import Blueprint, g, request
 from psycopg.types.json import Jsonb
 
 from .ai import AIError, AITimeout, get_response
-from .common import auth_required, body, conn, current_weight, err, iso, parse_date
+from .common import auth_required, body, conn, err, iso, parse_date
 
 bp = Blueprint("nutrition", __name__)
 FIELDS = ("kcal", "protein_g", "carbs_g", "fat_g")
@@ -49,22 +49,10 @@ def totals(connection, day):
 
 
 def targets(connection):
-    user = connection.execute("SELECT gender,date_of_birth,height_cm FROM users WHERE id=%s", (g.user_id,)).fetchone()
-    goals = {row["goal"] for row in connection.execute("SELECT goal FROM user_goals WHERE user_id=%s", (g.user_id,))}
     custom = {row["nutrient"]: float(row["amount"]) for row in connection.execute(
         "SELECT nutrient,amount FROM nutrition_goals WHERE user_id=%s", (g.user_id,))}
-    today = date.today()
-    born = user["date_of_birth"]
-    age = today.year - born.year - ((today.month, today.day) < (born.month, born.day))
-    weight = current_weight(connection, g.user_id)
-    adjustment = {"male": 5, "female": -161}.get(user["gender"], -78)
-    kcal = (10 * weight + 6.25 * float(user["height_cm"]) - 5 * age + adjustment) * 1.55
-    kcal += -400 if "lose_weight" in goals else 250 if "gain_muscle" in goals else 0
-    kcal = custom.get("calories", max(0, math.floor(kcal / 50 + 0.5) * 50))
-    protein = custom.get("protein", round(weight * (1.8 if "gain_muscle" in goals else 1.4)))
-    fat = custom.get("fat", round(kcal * .3 / 9))
-    carbs = custom.get("carbs", max(0, round((kcal - protein * 4 - fat * 9) / 4)))
-    return {"kcal": kcal, "protein_g": protein, "carbs_g": carbs, "fat_g": fat}
+    return {"kcal": custom.get("calories"), "protein_g": custom.get("protein"),
+            "carbs_g": custom.get("carbs"), "fat_g": custom.get("fat")}
 
 
 def requested_day():

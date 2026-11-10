@@ -589,8 +589,8 @@ route('DELETE', '/workouts/:id', ({ user, params }) => {
 /* ================================================================ NUTRITION */
 route('GET', '/nutrition/summary', ({ user, q }) => {
   const date = q.date || today();
-  const t = nutritionTargets(user);
-  return { date, totals: dayTotals(user, date), targets: { kcal: t.kcal, protein_g: t.protein_g, carbs_g: t.carbs_g, fat_g: t.fat_g } };
+  const goals = Object.fromEntries((user.nutrition_goals || []).map((n) => [n.nutrient, Number(n.amount)]));
+  return { date, totals: dayTotals(user, date), targets: { kcal: goals.calories ?? null, protein_g: goals.protein ?? null, carbs_g: goals.carbs ?? null, fat_g: goals.fat ?? null } };
 });
 route('GET', '/meals', ({ user, q }) => {
   const date = q.date || today();

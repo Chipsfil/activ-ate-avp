@@ -40,13 +40,16 @@ async function loadDay() {
   } catch (err) { toast(err.message, 'error'); }
 }
 function renderTotals({ totals: t, targets: g }) {
-  const cell = (label, v, target, unit, warm) => {
+  const cell = (label, v, target, unit) => {
+    if (target == null) return `<div class="kpi"><span class="kpi-label">${label}</span>
+      <span class="kpi-value">${fmt(v)} <small>${unit}</small></span>
+      <span class="small muted">No target set</span></div>`;
     const left = target - v;
-    return `<div class="stack" style="gap:10px"><span class="kpi-label">${label}</span>
-      <span class="kpi-value" style="font-size:28px">${fmt(v)} <small>/ ${fmt(target)} ${unit}</small></span>
-      ${track(v, target, warm)}<span class="small muted">${left > 0 ? `${fmt(left)} ${unit} left` : 'Target reached ✓'}</span></div>`;
+    return `<div class="kpi"><span class="kpi-label">${label}</span>
+      <span class="kpi-value">${fmt(v)} <small>/ ${fmt(target)} ${unit}</small></span>
+      ${track(v, target)}<span class="small muted">${left > 0 ? `${fmt(left)} ${unit} left` : 'Target reached ✓'}</span></div>`;
   };
-  $('#totals').innerHTML = cell('Calories', t.kcal, g.kcal, 'kcal') + cell('Protein', t.protein_g, g.protein_g, 'g', true) + cell('Carbs', t.carbs_g, g.carbs_g, 'g') + cell('Fat', t.fat_g, g.fat_g, 'g');
+  $('#totals').innerHTML = cell('Calories', t.kcal, g.kcal, 'kcal') + cell('Protein', t.protein_g, g.protein_g, 'g') + cell('Carbs', t.carbs_g, g.carbs_g, 'g') + cell('Fat', t.fat_g, g.fat_g, 'g');
 }
 const TYPE_LABEL = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snack: 'Snack' };
 function renderMeals(items) {

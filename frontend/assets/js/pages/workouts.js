@@ -76,8 +76,8 @@ function renderStats(s, items) {
   const bySport = [...sportMinutes].map(([sport, minutes]) => ({ sport, minutes })).sort((a, b) => b.minutes - a.minutes);
   const personalBests = Array.isArray(s.personal_bests) ? s.personal_bests : [];
   $('#kpis').innerHTML = `
-    <div class="kpi"><span class="kpi-label">Minutes in selected week</span><span class="kpi-value">${fmt(w.minutes)} <small>/ ${fmt(w.target_minutes)}</small></span>${track(w.minutes, w.target_minutes)}</div>
-    <div class="kpi"><span class="kpi-label">Sessions in selected week</span><span class="kpi-value">${w.sessions_done} <small>/ ${w.sessions_planned}</small></span>${track(w.sessions_done, w.sessions_planned)}</div>
+    <div class="kpi"><span class="kpi-label">Minutes</span><span class="kpi-value">${fmt(w.minutes)} <small>/ ${fmt(w.target_minutes)}</small></span>${track(w.minutes, w.target_minutes)}</div>
+    <div class="kpi"><span class="kpi-label">Sessions</span><span class="kpi-value">${w.sessions_done} <small>/ ${w.sessions_planned}</small></span>${track(w.sessions_done, w.sessions_planned)}</div>
     ${strength.slice(0, 2).map((g) => `<div class="kpi"><span class="kpi-label">${esc(g.label.split(' · ')[0])} goal</span><span class="kpi-value">${g.done} <small>/ ${g.target} sessions</small></span>${track(g.done, g.target)}</div>`).join('')}`;
 
   const target = Number(s.target_minutes || w.target_minutes || 150);
