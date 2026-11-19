@@ -18,8 +18,8 @@ function renderKpis(d) {
   $('#kpis').innerHTML = `
     <div class="kpi"><span class="kpi-label">Exercise minutes</span><span class="kpi-value">${fmt(w.minutes)} <small>/ ${fmt(w.target_minutes)}</small></span>${track(w.minutes, w.target_minutes)}</div>
     <div class="kpi"><span class="kpi-label">Sessions this week</span><span class="kpi-value">${w.sessions_done} <small>/ ${w.sessions_planned}</small></span>${track(w.sessions_done, w.sessions_planned)}</div>
-    <div class="kpi"><span class="kpi-label">Calories today</span><span class="kpi-value">${fmt(t.kcal)} <small>/ ${fmt(t.kcal_target)}</small></span>${track(t.kcal, t.kcal_target, true)}</div>
-    <div class="kpi"><span class="kpi-label">Protein today</span><span class="kpi-value">${fmt(t.protein_g)} <small>/ ${fmt(t.protein_target_g)} g</small></span>${track(t.protein_g, t.protein_target_g, true)}</div>
+    <div class="kpi"><span class="kpi-label">Calories today</span><span class="kpi-value">${fmt(t.kcal)} <small>${t.kcal_target == null ? 'kcal' : `/ ${fmt(t.kcal_target)}`}</small></span>${t.kcal_target == null ? '<span class="kpi-note">No target set</span>' : track(t.kcal, t.kcal_target, true)}</div>
+    <div class="kpi"><span class="kpi-label">Protein today</span><span class="kpi-value">${fmt(t.protein_g)} <small>${t.protein_target_g == null ? 'g' : `/ ${fmt(t.protein_target_g)} g`}</small></span>${t.protein_target_g == null ? '<span class="kpi-note">No target set</span>' : track(t.protein_g, t.protein_target_g, true)}</div>
     <div class="kpi"><span class="kpi-label">Streak</span><span class="kpi-value">${d.streak.current} <small>days</small></span><span class="kpi-note kpi-note--warm">Personal best: ${d.streak.best} days</span></div>`;
   const left = w.sessions_planned - w.sessions_done;
   $('#headline').textContent = left > 0 ? `${left} more session${left > 1 ? 's' : ''} to hit your weekly plan.` : 'All planned sessions done this week – great work!';

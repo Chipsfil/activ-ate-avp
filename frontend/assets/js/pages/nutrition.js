@@ -32,12 +32,16 @@ $('#next-day').addEventListener('click', () => setDay(addDaysISO(state.day, 1)))
 dayInput.addEventListener('change', () => dayInput.value && setDay(dayInput.value));
 
 /* ----------------------------------------------------------- Totals & meals */
+let dayRequest = 0;
 async function loadDay() {
+  const id = ++dayRequest;
+  const day = state.day;
   try {
-    const [sum, meals] = await Promise.all([nutrition.summary(state.day), nutrition.meals(state.day)]);
+    const [sum, meals] = await Promise.all([nutrition.summary(day), nutrition.meals(day)]);
+    if (id !== dayRequest) return;
     renderTotals(sum);
     renderMeals(meals.items);
-  } catch (err) { toast(err.message, 'error'); }
+  } catch (err) { if (id === dayRequest) toast(err.message, 'error'); }
 }
 function renderTotals({ totals: t, targets: g }) {
   const cell = (label, v, target, unit) => {

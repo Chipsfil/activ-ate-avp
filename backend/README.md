@@ -55,6 +55,9 @@ python app.py
 ```
 
 This schema initializes a new database; it does not migrate existing tables.
+Target changes apply from the day they are saved; multiple changes on the same
+day use the latest values. Earlier unrecorded target changes cannot be recovered,
+so the existing targets are the historical baseline.
 Promote a trusted registered account to the study administrator with:
 
 ```sql

@@ -1,4 +1,4 @@
-import { workouts, recommendations, me as meApi } from '../api.js';
+import { workouts, recommendations, dashboard, me as meApi } from '../api.js';
 import { initPage, $, esc, fmt, track, relativeDay, formatDate, todayISO, addDaysISO, toast, setBusy, icons } from '../ui.js';
 import { mountWorkoutForm } from '../components/workout-form.js';
 
@@ -13,12 +13,19 @@ function weekStart(date) {
   const day = new Date(date + 'T12:00:00').getDay();
   return addDaysISO(date, -((day + 6) % 7));
 }
+function weekNumber(date) {
+  const day = new Date(`${date}T00:00:00Z`);
+  day.setUTCDate(day.getUTCDate() + 3 - (day.getUTCDay() + 6) % 7);
+  const year = day.getUTCFullYear();
+  const firstDay = new Date(Date.UTC(year, 0, 1));
+  const week = Math.floor((day - firstDay) / 86400000 / 7) + 1;
+  return `Week ${week}, ${year}`;
+}
 function setWeek(date) {
   const current = weekStart(todayISO());
   selectedWeek = weekStart(date);
   if (selectedWeek > current) selectedWeek = current;
-  $('#week').value = selectedWeek;
-  $('#week').max = todayISO();
+  $('#week').textContent = weekNumber(selectedWeek);
   $('#next-week').disabled = selectedWeek >= current;
   $('#week-label').textContent = `${selectedWeek === current ? 'This week: ' : 'Week: '}${formatDate(selectedWeek, { day: 'numeric', month: 'short', year: 'numeric' })} – ${formatDate(addDaysISO(selectedWeek, 6), { day: 'numeric', month: 'short', year: 'numeric' })}`;
   $('#by-sport-title').textContent = selectedWeek === current ? 'This week by sport' : 'Selected week by sport';
@@ -26,7 +33,6 @@ function setWeek(date) {
 }
 $('#prev-week').addEventListener('click', () => setWeek(addDaysISO(selectedWeek, -7)));
 $('#next-week').addEventListener('click', () => setWeek(addDaysISO(selectedWeek, 7)));
-$('#week').addEventListener('change', (e) => { if (e.target.value) setWeek(e.target.value); });
 
 async function refreshWeek() {
   const id = ++requestId;
@@ -35,9 +41,10 @@ async function refreshWeek() {
   $('#kpis').innerHTML = '<div class="skeleton" style="height:90px"></div>';
   $('#by-sport').innerHTML = '<div class="skeleton" style="height:80px"></div>';
   try {
-    const [stats, items] = await Promise.all([workouts.stats(8), loadWeekWorkouts(start)]);
+    const selectedDay = start === weekStart(todayISO()) ? todayISO() : addDaysISO(start, 6);
+    const [stats, items, selected] = await Promise.all([workouts.stats(8), loadWeekWorkouts(start), dashboard.get(selectedDay)]);
     if (id !== requestId) return;
-    renderStats(stats, items);
+    renderStats({ ...stats, week: selected.week, goal_progress: selected.goal_progress }, items);
     renderHistory(items);
   } catch (err) { if (id === requestId) toast(err.message, 'error'); }
 }

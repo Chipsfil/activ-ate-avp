@@ -10,6 +10,7 @@ from psycopg.types.json import Jsonb
 
 from .ai import AIError, AITimeout, get_response
 from .common import auth_required, body, conn, err, iso, parse_date
+from .target_history import goals_on
 
 bp = Blueprint("nutrition", __name__)
 FIELDS = ("kcal", "protein_g", "carbs_g", "fat_g")
@@ -48,9 +49,8 @@ def totals(connection, day):
     return {field: float(row[field]) for field in FIELDS}
 
 
-def targets(connection):
-    custom = {row["nutrient"]: float(row["amount"]) for row in connection.execute(
-        "SELECT nutrient,amount FROM nutrition_goals WHERE user_id=%s", (g.user_id,))}
+def targets(connection, day):
+    custom = {row["nutrient"]: float(row["amount"]) for row in goals_on(connection, g.user_id, "nutrition", day)}
     return {"kcal": custom.get("calories"), "protein_g": custom.get("protein"),
             "carbs_g": custom.get("carbs"), "fat_g": custom.get("fat")}
 
@@ -66,7 +66,7 @@ def summary():
     if day is None:
         return err("Invalid date.", field="date")
     with conn() as connection:
-        return {"date": iso(day), "totals": totals(connection, day), "targets": targets(connection)}
+        return {"date": iso(day), "totals": totals(connection, day), "targets": targets(connection, day)}
 
 
 @bp.get("/api/v1/meals")

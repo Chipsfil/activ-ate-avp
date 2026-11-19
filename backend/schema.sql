@@ -145,3 +145,11 @@ CREATE TABLE IF NOT EXISTS weight_goals (
   target_kg numeric(5,2) NOT NULL CHECK (target_kg BETWEEN 30 AND 300),
   target_date date
 );
+
+CREATE TABLE IF NOT EXISTS target_history (
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  kind text NOT NULL CHECK (kind IN ('activity', 'nutrition')),
+  effective_on date NOT NULL,
+  goals jsonb NOT NULL,
+  PRIMARY KEY (user_id, kind, effective_on)
+);

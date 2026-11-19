@@ -18,6 +18,8 @@ from .common import (
     weekly_target,
 )
 from .community import _leaderboard
+from .target_history import goals_on
+from .nutrition import totals as nutrition_totals, targets as nutrition_targets
 
 bp = Blueprint("activity", __name__)
 
@@ -42,21 +44,17 @@ def workout_json(row):
     }
 
 
-def week_summary(connection, start, target=None):
+def week_summary(connection, start, target=None, day=None):
     # Count completed workouts from Monday through Sunday, including both dates.
     row = connection.execute(
         "SELECT COALESCE(sum(duration_min),0) minutes, count(*) sessions "
         "FROM workouts WHERE user_id=%s AND performed_on BETWEEN %s AND %s AND status='done'",
         (g.user_id, start, start + timedelta(days=6)),
     ).fetchone()
-    # Planned sessions come from weekly goals, rather than planned workout rows.
-    planned = connection.execute(
-        "SELECT COALESCE(sum(sessions_per_week),0) sessions "
-        "FROM activity_goals WHERE user_id=%s",
-        (g.user_id,),
-    ).fetchone()["sessions"]
+    goals = goals_on(connection, g.user_id, "activity", day or date.today())
+    planned = sum(goal["sessions_per_week"] for goal in goals)
     if target is None:
-        target = weekly_target(connection, g.user_id)
+        target = sum(goal["minutes_per_session"] * goal["sessions_per_week"] for goal in goals) or 150
     return {
         "minutes": int(row["minutes"]),
         "target_minutes": int(target),
@@ -66,11 +64,7 @@ def week_summary(connection, start, target=None):
 
 
 def goal_progress(connection, start, end):
-    goals = connection.execute(
-        "SELECT sport_id,sport_name,minutes_per_session,sessions_per_week "
-        "FROM activity_goals WHERE user_id=%s ORDER BY sport_name",
-        (g.user_id,),
-    ).fetchall()
+    goals = goals_on(connection, g.user_id, "activity", end)
     result = []
     # Count completed sessions separately for each sport goal.
     # Matching by name also supports sports that have no catalogue ID.
@@ -259,7 +253,9 @@ def dashboard():
             "WHERE user_id=%s AND performed_on=%s AND status='done'",
             (g.user_id, day),
         ).fetchone()["sessions"]
-        week = week_summary(connection, start)
+        nutrition = nutrition_totals(connection, day)
+        nutrition_goal = nutrition_targets(connection, day)
+        week = week_summary(connection, start, day=day)
         # Goal progress stops at today when the selected dashboard date is in the future.
         progress_end = min(day, date.today())
         progress = goal_progress(connection, start, progress_end)
@@ -321,6 +317,10 @@ def dashboard():
         "date": iso(day),
         "checkin": dict(log) if log else {"water_l": None},
         "today": {
+            "kcal": nutrition["kcal"],
+            "kcal_target": nutrition_goal["kcal"],
+            "protein_g": nutrition["protein_g"],
+            "protein_target_g": nutrition_goal["protein_g"],
             "minutes": sum(
                 item["minutes"] or 0 for item in days if item["date"] == iso(day)
             ),

@@ -6,6 +6,7 @@ import math
 from flask import Blueprint, g
 
 from .common import auth_required, body, conn, current_weight, err, user_json
+from .target_history import preserve_baseline, snapshot
 
 bp = Blueprint("profile", __name__)
 NUTRIENT_UNITS = {"calories": "kcal", "protein": "g", "carbs": "g", "fat": "g", "fiber": "g", "water": "L"}
@@ -204,6 +205,7 @@ def save_targets():
                 connection, g.user_id, values["goals"], values["sports"]
             )
         if "activity_goals" in values:
+            preserve_baseline(connection, g.user_id, "activity")
             # The submitted activity goals replace the entire previous activity-goal list.
             activity_sport_ids = valid_sport_ids(connection, goals)
             connection.execute("DELETE FROM activity_goals WHERE user_id=%s", (g.user_id,))
@@ -227,10 +229,13 @@ def save_targets():
                     "VALUES(%s,%s,%s,%s,%s)",
                     goal_rows,
                 )
+            snapshot(connection, g.user_id, "activity", date.today())
         if "nutrition_goals" in values:
+            preserve_baseline(connection, g.user_id, "nutrition")
             connection.execute("DELETE FROM nutrition_goals WHERE user_id=%s", (g.user_id,))
             with connection.cursor() as cursor:
                 cursor.executemany("INSERT INTO nutrition_goals(user_id,nutrient,amount) VALUES(%s,%s,%s)", [(g.user_id, goal["nutrient"], goal["amount"]) for goal in nutrition])
+            snapshot(connection, g.user_id, "nutrition", date.today())
         if "weight_goal" in values:
             if weight_goal is None:
                 connection.execute("DELETE FROM weight_goals WHERE user_id=%s", (g.user_id,))
@@ -259,6 +264,7 @@ def complete():
             "SELECT 1 FROM nutrition_goals WHERE user_id=%s LIMIT 1", (g.user_id,)
         ).fetchone()
         if not existing:
+            preserve_baseline(connection, g.user_id, "nutrition")
             user = connection.execute(
                 "SELECT gender,date_of_birth,height_cm FROM users WHERE id=%s",
                 (g.user_id,),
@@ -288,6 +294,7 @@ def complete():
                      (g.user_id, "fat", fat), (g.user_id, "carbs", carbs),
                      (g.user_id, "water", 2)],
                 )
+            snapshot(connection, g.user_id, "nutrition", date.today())
         connection.execute(
             "UPDATE users SET onboarding_step='done' WHERE id=%s", (g.user_id,)
         )
