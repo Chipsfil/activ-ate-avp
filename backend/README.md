@@ -54,10 +54,8 @@ psql "$DATABASE_URL" -f schema.sql
 python app.py
 ```
 
-For an existing database, rerun `psql "$DATABASE_URL" -f schema.sql` before
-using nutrition endpoints, weight goals, or study administration. This adds
-the required tables and columns. Promote a trusted registered account to the
-study administrator with:
+This schema initializes a new database; it does not migrate existing tables.
+Promote a trusted registered account to the study administrator with:
 
 ```sql
 UPDATE users SET role = 'admin' WHERE username = 'your-admin-username';

@@ -12,11 +12,11 @@ CREATE TABLE IF NOT EXISTS users (
   date_of_birth date NOT NULL,
   height_cm numeric(5,1) NOT NULL CHECK (height_cm BETWEEN 100 AND 250),
   onboarding_step text NOT NULL DEFAULT '2',
+  role text NOT NULL DEFAULT 'user',
+  participant_no integer,
+  community_enabled boolean NOT NULL DEFAULT true,
   created_at timestamptz NOT NULL DEFAULT now()
 );
-ALTER TABLE users ADD COLUMN IF NOT EXISTS role text NOT NULL DEFAULT 'user';
-ALTER TABLE users ADD COLUMN IF NOT EXISTS participant_no integer;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS community_enabled boolean NOT NULL DEFAULT true;
 CREATE UNIQUE INDEX IF NOT EXISTS users_participant_no_unique
   ON users(participant_no) WHERE participant_no IS NOT NULL;
 
@@ -27,11 +27,6 @@ CREATE TABLE IF NOT EXISTS app_settings (
 );
 INSERT INTO app_settings(id) VALUES(true) ON CONFLICT (id) DO NOTHING;
 
--- The old networks and network_members tables are removed; networks stores
--- the directed viewer-to-target relationship directly.
-DROP TABLE IF EXISTS network_members;
-DROP TABLE IF EXISTS networks CASCADE;
-
 CREATE TABLE IF NOT EXISTS networks (
   viewer_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   target_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -39,18 +34,6 @@ CREATE TABLE IF NOT EXISTS networks (
   PRIMARY KEY(viewer_id, target_id),
   CHECK(viewer_id <> target_id)
 );
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1 FROM information_schema.tables
-    WHERE table_schema='public' AND table_name='visibility'
-  ) THEN
-    INSERT INTO networks(viewer_id,target_id,created_at)
-      SELECT viewer_id,target_id,created_at FROM visibility
-      ON CONFLICT (viewer_id,target_id) DO NOTHING;
-  END IF;
-END $$;
-DROP TABLE IF EXISTS visibility CASCADE;
 CREATE INDEX IF NOT EXISTS networks_target_idx ON networks(target_id);
 CREATE TABLE IF NOT EXISTS refresh_sessions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(), 
@@ -72,14 +55,11 @@ CREATE TABLE IF NOT EXISTS sports (
   met numeric(5,2) NOT NULL DEFAULT 6,
   aliases text[] NOT NULL DEFAULT '{}'
 );
-ALTER TABLE sports DROP COLUMN IF EXISTS popularity;
-ALTER TABLE sports DROP COLUMN IF EXISTS category;
 CREATE TABLE IF NOT EXISTS user_goals (
   user_id uuid REFERENCES users(id) ON DELETE CASCADE, 
   goal text NOT NULL,
   PRIMARY KEY(user_id, goal)
 );
-ALTER TABLE user_goals DROP COLUMN IF EXISTS position;
 CREATE TABLE IF NOT EXISTS user_sports (
   user_id uuid REFERENCES users(id) ON DELETE CASCADE, 
   sport_id text REFERENCES sports(id),
@@ -149,8 +129,6 @@ CREATE TABLE IF NOT EXISTS chat_messages (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
--- Apply this file again to add nutrition support to an existing database.
-ALTER TABLE meals DROP COLUMN IF EXISTS items;
 CREATE TABLE IF NOT EXISTS meal_estimates (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -159,11 +137,8 @@ CREATE TABLE IF NOT EXISTS meal_estimates (
   totals jsonb,
   created_at timestamptz NOT NULL DEFAULT now()
 );
-ALTER TABLE meal_estimates DROP COLUMN IF EXISTS totals_edited;
 CREATE INDEX IF NOT EXISTS meal_estimates_user_date ON meal_estimates(user_id, created_at);
 
--- Reapplying the schema upgrades existing installations.
-ALTER TABLE body_weights ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
 CREATE TABLE IF NOT EXISTS weight_goals (
   user_id uuid PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
   start_kg numeric(5,2) NOT NULL CHECK (start_kg BETWEEN 30 AND 300),
