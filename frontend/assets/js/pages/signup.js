@@ -23,8 +23,8 @@ const TITLES = {
   2: ['Goals & sports', 'What do you want to achieve, and which sports do you do?'],
   3: ['Targets', 'Turn your goals into concrete weekly targets for training and food.'],
 };
-const UNITS = { protein: 'g', calories: 'kcal', water: 'L', carbs: 'g', fat: 'g', fiber: 'g', sugar: 'g' };
-const NUT_LABEL = { protein: 'protein', calories: 'calories', water: 'water', carbs: 'carbohydrates', fat: 'fat', fiber: 'fiber', sugar: 'sugar' };
+const UNITS = { protein: 'g', calories: 'kcal', water: 'L', carbs: 'g', fat: 'g', fiber: 'g' };
+const NUT_LABEL = { protein: 'protein', calories: 'calories', water: 'water', carbs: 'carbohydrates', fat: 'fat', fiber: 'fiber' };
 
 const state = { step: 1, goals: [], sports: [], acts: [], nuts: [], times: 3 };
 
@@ -153,7 +153,7 @@ async function enterStep3() {
   try {
     const t = await me.getTargets();
     if (t.activity_goals?.length) state.acts = t.activity_goals.map((g) => ({ sport: g.sport, sport_id: g.sport_id, minutes_per_session: g.minutes_per_session, sessions_per_week: g.sessions_per_week }));
-    if (t.nutrition_goals?.length) state.nuts = t.nutrition_goals.map((n) => ({ nutrient: n.nutrient, amount: n.amount }));
+    if (t.nutrition_goals?.length) state.nuts = t.nutrition_goals.filter((n) => UNITS[n.nutrient]).map((n) => ({ nutrient: n.nutrient, amount: n.amount }));
     if (t.weight_goal) { f3.target_kg.value = t.weight_goal.target_kg; f3.target_date.value = t.weight_goal.target_date || ''; }
   } catch { /* keep empty */ }
   renderActs(); renderNuts();
@@ -196,7 +196,7 @@ function renderNuts() {
   $('#nut-list').innerHTML = state.nuts.length ? state.nuts.map((n, i) => `
     <div class="goal-row">
       <span class="icon-box icon-box--warm" style="width:36px;height:36px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M7 2v9a3 3 0 0 0 3 3v8M7 2v6M11 2v6M17 2c-2 2-3 5-3 9h3v11"/></svg></span>
-      <b class="grow">${n.nutrient === 'water' ? 'Drink' : n.nutrient === 'sugar' ? 'Max.' : n.nutrient === 'calories' ? 'Eat about' : 'Eat'} ${esc(n.amount)} ${UNITS[n.nutrient]}${n.nutrient === 'calories' ? '' : ' ' + NUT_LABEL[n.nutrient]} every day</b>
+      <b class="grow">${n.nutrient === 'water' ? 'Drink' : n.nutrient === 'calories' ? 'Eat about' : 'Eat'} ${esc(n.amount)} ${UNITS[n.nutrient]}${n.nutrient === 'calories' ? '' : ' ' + NUT_LABEL[n.nutrient]} every day</b>
       <button type="button" class="btn btn--icon btn--small" data-nut="${i}" aria-label="Remove goal">×</button>
     </div>`).join('') : '<div class="empty">No nutrition goals configured.</div>';
 }

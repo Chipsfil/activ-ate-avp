@@ -8,7 +8,7 @@ from flask import Blueprint, g
 from .common import auth_required, body, conn, current_weight, err, user_json
 
 bp = Blueprint("profile", __name__)
-NUTRIENT_UNITS = {"calories": "kcal", "protein": "g", "carbs": "g", "fat": "g", "fiber": "g", "sugar": "g", "water": "L"}
+NUTRIENT_UNITS = {"calories": "kcal", "protein": "g", "carbs": "g", "fat": "g", "fiber": "g", "water": "L"}
 
 
 def valid_sport_ids(connection, sports):

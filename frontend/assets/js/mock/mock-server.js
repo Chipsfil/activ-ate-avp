@@ -66,7 +66,7 @@ const sportById = (id) => (SPORTS || []).find((s) => s.id === id);
 const sportByName = (name) => (SPORTS || []).find((s) => s.name.toLowerCase() === String(name).toLowerCase() || (s.aliases || []).includes(String(name).toLowerCase()));
 const INTENSITY = { light: 0.8, medium: 1, high: 1.2 };
 const GOALS = ['lose_weight', 'gain_muscle', 'improve_stamina'];
-const NUTRIENTS = { calories: 'kcal', protein: 'g', carbs: 'g', fat: 'g', fiber: 'g', sugar: 'g', water: 'L' };
+const NUTRIENTS = { calories: 'kcal', protein: 'g', carbs: 'g', fat: 'g', fiber: 'g', water: 'L' };
 
 const initialsOf = (u) => ((u.first_name || '')[0] || '').toUpperCase() + ((u.last_name || '')[0] || '').toUpperCase();
 function publicUser(u) {
@@ -101,7 +101,7 @@ function nutritionTargets(u) {
   const protein = g.protein || Math.round(w * ((u.goals || []).includes('gain_muscle') ? 1.8 : 1.4));
   const fat = g.fat || Math.round((kcal * 0.3) / 9);
   const carbs = g.carbs || Math.max(0, Math.round((kcal - protein * 4 - fat * 9) / 4));
-  return { kcal, protein_g: protein, carbs_g: carbs, fat_g: fat, water_l: g.water || 2, fiber_g: g.fiber || null, sugar_g: g.sugar || null };
+  return { kcal, protein_g: protein, carbs_g: carbs, fat_g: fat, water_l: g.water || 2, fiber_g: g.fiber || null };
 }
 const weeklyTarget = (u) => (u.activity_goals || []).reduce((s, g) => s + g.minutes_per_session * g.sessions_per_week, 0) || 150;
 const plannedSessions = (u) => (u.activity_goals || []).reduce((s, g) => s + g.sessions_per_week, 0) || 3;
