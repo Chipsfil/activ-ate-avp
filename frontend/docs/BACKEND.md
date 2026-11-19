@@ -44,8 +44,8 @@ Every router depends on `get_current_user()` (verifies the JWT) except the publi
 | `users` | id (uuid pk), username (unique, citext), email (unique, citext), password_hash, first_name, last_name, gender, date_of_birth, height_cm, onboarding_step (text: '2','3','4','done'), created_at | |
 | `sessions` | id, user_id → users, refresh_token_hash, expires_at, revoked_at, created_at | refresh tokens |
 | `body_weights` | id, user_id, weight_kg, measured_on | history; latest row = current weight |
-| `user_goals` | user_id, goal (enum lose_weight/gain_muscle/improve_stamina), position | position 0 = primary goal |
-| `sports` | id (text slug pk), name, category, met, popularity | ~1000 rows, imported (see §5) |
+| `user_goals` | user_id, goal (enum lose_weight/gain_muscle/improve_stamina) | selected goals |
+| `sports` | id (text slug pk), name, met | ~1000 rows, imported (see §5) |
 | `sport_aliases` | sport_id → sports, alias | for search ("gym", "unihockey") |
 | `user_sports` | user_id, sport_id (nullable), name | free text allowed (sport_id null) |
 | `activity_goals` | id, user_id, sport_id (nullable), sport_name, minutes_per_session, sessions_per_week | |
@@ -126,11 +126,10 @@ days of the week so far, streak milestones (7/14/30 days), new personal best.
 ## 5. Sports list
 
 - Frontend autocomplete calls `GET /sports?q=` while typing (debounced 180 ms) and allows free text.
-- Production list: ~1000 sports with `name`, `category`, `met`, aliases (e.g. from the *Compendium of Physical Activities*;
+- Production list: ~1000 sports with `name`, `met`, aliases (e.g. from the *Compendium of Physical Activities*;
   verify licensing). Seed with `assets/data/sports.json` (100 sports) and import more via `scripts/import_sports.py`.
-- Search: `ILIKE` on name and aliases, ranked as in API.md §4; consider `pg_trgm` for typo tolerance.
+- Search: case-insensitive matching on name and aliases, ordered by name; consider `pg_trgm` for typo tolerance.
 - Log free-text sports (`sport_id IS NULL`) and review the most common ones regularly to extend the list.
-- `popularity` (count of users/workouts) sorts results for empty or short queries.
 
 ---
 

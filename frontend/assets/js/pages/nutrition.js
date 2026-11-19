@@ -131,7 +131,6 @@ review.addEventListener('submit', async (e) => {
     await nutrition.createMeal({
       estimate_id: est.estimate_id, meal_type: state.mealType, eaten_on: state.day, description: name,
       kcal: Number(review.kcal.value), protein_g: Number(review.protein_g.value), carbs_g: Number(review.carbs_g.value), fat_g: Number(review.fat_g.value),
-      items: est.items,
     });
     toast(`${TYPE_LABEL[state.mealType]} saved · ${review.kcal.value} kcal`);
     state.estimate = null;

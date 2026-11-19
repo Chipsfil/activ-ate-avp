@@ -27,12 +27,12 @@ def valid_sport_ids(connection, sports):
 def replace_preferences(connection, user_id, goals, sports):
     """Replace the complete goal and sport lists within the caller's transaction."""
     sport_ids = valid_sport_ids(connection, sports)
-    # Replace the old goal list and store each new goal with its list position.
+    # Replace the old goals with the new selection.
     connection.execute("DELETE FROM user_goals WHERE user_id=%s", (user_id,))
     with connection.cursor() as cursor:
         cursor.executemany(
-            "INSERT INTO user_goals(user_id,goal,position) VALUES(%s,%s,%s)",
-            [(user_id, goal, index) for index, goal in enumerate(goals)],
+            "INSERT INTO user_goals(user_id,goal) VALUES(%s,%s)",
+            [(user_id, goal) for goal in goals],
         )
     # Replace selected sports too; custom names can be saved without a catalogue ID.
     connection.execute("DELETE FROM user_sports WHERE user_id=%s", (user_id,))
@@ -83,7 +83,7 @@ def get_targets():
             "SELECT gender,date_of_birth,height_cm FROM users WHERE id=%s", (g.user_id,)
         ).fetchone()
         user_goals = connection.execute(
-            "SELECT goal FROM user_goals WHERE user_id=%s ORDER BY position",
+            "SELECT goal FROM user_goals WHERE user_id=%s ORDER BY goal",
             (g.user_id,),
         ).fetchall()
         user_sports = connection.execute(

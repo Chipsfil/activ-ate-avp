@@ -201,10 +201,10 @@ def sports():
     pattern = f"%{query}%"
     with conn() as connection:
         rows = connection.execute(
-            "SELECT id,name,category,met FROM sports "
+            "SELECT id,name,met FROM sports "
             "WHERE %s='' OR lower(name) LIKE %s OR EXISTS "
             "(SELECT 1 FROM unnest(aliases) a WHERE lower(a) LIKE %s) "
-            "ORDER BY popularity DESC,name LIMIT %s",
+            "ORDER BY name LIMIT %s",
             (query, pattern, pattern, limit),
         )
         return {
@@ -212,7 +212,6 @@ def sports():
                 {
                     "id": row["id"],
                     "name": row["name"],
-                    "category": row["category"],
                     "met": float(row["met"]),
                 }
                 for row in rows

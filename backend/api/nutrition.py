@@ -36,7 +36,7 @@ def meal_json(row):
     return {**{key: float(row[key]) for key in FIELDS},
             "id": str(row["id"]), "eaten_on": iso(row["eaten_on"]),
             "meal_type": row["meal_type"], "description": row["description"],
-            "source": row["source"], "items": row["items"],
+            "source": row["source"],
             "created_at": iso(row["created_at"])}
 
 
@@ -156,17 +156,14 @@ def create_meal():
     if raw_id is not None and not estimate_id:
         return err("Estimate is unavailable or already confirmed.", "conflict", 409)
     with conn() as connection:
-        items = []
         if estimate_id:
-            estimate_row = connection.execute("SELECT items,totals FROM meal_estimates WHERE id=%s AND user_id=%s AND status='pending' FOR UPDATE", (estimate_id, g.user_id)).fetchone()
+            estimate_row = connection.execute("SELECT id FROM meal_estimates WHERE id=%s AND user_id=%s AND status='pending' FOR UPDATE", (estimate_id, g.user_id)).fetchone()
             if not estimate_row:
                 return err("Estimate is unavailable or already confirmed.", "conflict", 409)
-            items = estimate_row["items"]
-            edited = any(nutrients[field] != estimate_row["totals"][field] for field in FIELDS)
-            connection.execute("UPDATE meal_estimates SET status='confirmed',totals_edited=%s WHERE id=%s", (edited, estimate_id))
+            connection.execute("UPDATE meal_estimates SET status='confirmed' WHERE id=%s", (estimate_id,))
         row = connection.execute(
-            "INSERT INTO meals(user_id,eaten_on,meal_type,description,source,kcal,protein_g,carbs_g,fat_g,items) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING *",
-            (g.user_id, day, values["meal_type"], description.strip(), "ai" if estimate_id else "manual", *[nutrients[field] for field in FIELDS], Jsonb(items))).fetchone()
+            "INSERT INTO meals(user_id,eaten_on,meal_type,description,source,kcal,protein_g,carbs_g,fat_g) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING *",
+            (g.user_id, day, values["meal_type"], description.strip(), "ai" if estimate_id else "manual", *[nutrients[field] for field in FIELDS])).fetchone()
         day_totals = totals(connection, day)
         connection.commit()
     return {"meal": meal_json(row), "totals": day_totals}, 201

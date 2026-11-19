@@ -143,7 +143,7 @@ export const me = {
 
 /* ---------------------------------------------------------------- Sports */
 export const sports = {
-  /** GET /sports?q=…&limit=… → { items:[{ id, name, category, met }] } */
+  /** GET /sports?q=…&limit=… → { items:[{ id, name, met }] } */
   search: (q, limit = 8) => get('/sports', { q, limit }),
 };
 

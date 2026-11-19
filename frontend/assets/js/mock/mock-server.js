@@ -601,7 +601,7 @@ route('POST', '/meals', ({ user, body }) => {
     id: uid('m-'), user_id: user.id, eaten_on: body.eaten_on || today(), meal_type: body.meal_type,
     description: String(body.description || body.meal_type).trim().slice(0, 200), source: body.estimate_id ? 'ai' : 'manual',
     kcal: Math.round(Number(body.kcal)), protein_g: round1(Number(body.protein_g)), carbs_g: round1(Number(body.carbs_g)), fat_g: round1(Number(body.fat_g)),
-    items: body.items || [], edited, created_at: new Date().toISOString(),
+    edited, created_at: new Date().toISOString(),
   };
   db().meals.push(meal);
   return withStatus(201, { meal, totals: dayTotals(user, meal.eaten_on) });

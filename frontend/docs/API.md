@@ -143,8 +143,8 @@ Body = unsaved form values (`goals`, `activity_goals`, `nutrition_goals`, `curre
 ## 4. Sports (autocomplete)
 
 ### `GET /sports?q=pad&limit=8` — public
-`200 { "items": [{ "id": "padel", "name": "Padel", "category": "Racket", "met": 6.0 }] }`
-Empty `q` returns the most popular sports. Ranking: exact name → name prefix → alias prefix → word prefix → contains.
+`200 { "items": [{ "id": "padel", "name": "Padel", "met": 6.0 }] }`
+Results are ordered by name, including when `q` is empty.
 Search should also match aliases (e.g. "gym" → Weightlifting, "unihockey" → Floorball). Seed list: `assets/data/sports.json`.
 
 ---
@@ -214,7 +214,7 @@ Backend computes `kcal` (BACKEND.md › Calories). `201 { "workout": Workout, "w
 ### `Meal`
 ```json
 { "id": "m-1", "eaten_on": "2026-10-17", "meal_type": "dinner", "description": "Toast / bread, Cheese, Tomato …",
-  "source": "ai" | "manual", "kcal": 807, "protein_g": 65, "carbs_g": 54, "fat_g": 33, "items": [MealItem], "created_at": "…" }
+  "source": "ai" | "manual", "kcal": 807, "protein_g": 65, "carbs_g": 54, "fat_g": 33, "created_at": "…" }
 ```
 `meal_type` ∈ `breakfast | lunch | dinner | snack`.
 
@@ -238,10 +238,10 @@ Targets are `null` for nutrients without a saved goal.
 ### `POST /meals` — step 2 (confirm) or manual entry
 ```json
 { "estimate_id": "e-7c1e", "meal_type": "dinner", "eaten_on": "2026-10-17", "description": "Toast / bread, Cheese, Tomato …",
-  "kcal": 807, "protein_g": 65, "carbs_g": 54, "fat_g": 33, "items": [MealItem] }
+  "kcal": 807, "protein_g": 65, "carbs_g": 54, "fat_g": 33 }
 ```
-Manual entry: same without `estimate_id`/`items`. With `estimate_id`: must belong to user and be `pending` (409 otherwise);
-mark it `confirmed` and store whether totals were edited. Values ≥ 0, kcal ≤ 5000.
+Manual entry: same without `estimate_id`. With `estimate_id`: must belong to user and be `pending` (409 otherwise);
+mark it `confirmed`. Values ≥ 0, kcal ≤ 5000.
 `201 { "meal": Meal, "totals": DayTotals }`
 
 ### `DELETE /meals/{id}` → `200 { "totals": DayTotals }`

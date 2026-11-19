@@ -60,9 +60,9 @@ def access_token(user_id):
 def user_json(connection, user_id):
     # The profile is assembled from the user, goals, sports, and weight tables.
     user = connection.execute("SELECT * FROM users WHERE id=%s", (user_id,)).fetchone()
-    # Keep goals in the order in which the user selected them.
+    # Return goals in a consistent order.
     goal_rows = connection.execute(
-        "SELECT goal FROM user_goals WHERE user_id=%s ORDER BY position",
+        "SELECT goal FROM user_goals WHERE user_id=%s ORDER BY goal",
         (user_id,),
     )
     goals = [row["goal"] for row in goal_rows]

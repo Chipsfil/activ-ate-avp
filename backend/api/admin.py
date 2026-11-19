@@ -49,7 +49,7 @@ def participant_output(connection, user):
         "ORDER BY measured_on DESC,created_at DESC LIMIT 1", (user["id"],)
     ).fetchone()
     goals = connection.execute(
-        "SELECT goal FROM user_goals WHERE user_id=%s ORDER BY position", (user["id"],)
+        "SELECT goal FROM user_goals WHERE user_id=%s ORDER BY goal", (user["id"],)
     ).fetchall()
     sports = connection.execute(
         "SELECT name FROM user_sports WHERE user_id=%s ORDER BY name", (user["id"],)

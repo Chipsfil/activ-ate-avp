@@ -45,7 +45,7 @@ export function sportCombobox(input, { onSelect = () => {}, clearOnSelect = fals
     const exact = options.some((o) => o.name.toLowerCase() === q.toLowerCase());
     const items = options.map((o, i) => `
       <li class="combo-option" role="option" id="${id}-${i}" data-i="${i}" aria-selected="${i === active}">
-        <span>${esc(o.name)}</span><span class="meta">${esc(o.category || '')}</span>
+        <span>${esc(o.name)}</span>
       </li>`);
     if (q && !exact) {
       const i = options.length;
@@ -62,9 +62,9 @@ export function sportCombobox(input, { onSelect = () => {}, clearOnSelect = fals
     const q = input.value.trim();
     let sport;
     if (i < options.length) sport = options[i];
-    else if (q) sport = { id: null, name: q, category: null, met: null };
+    else if (q) sport = { id: null, name: q, met: null };
     else return;
-    selected = { name: sport.name, sport_id: sport.id, met: sport.met, category: sport.category };
+    selected = { name: sport.name, sport_id: sport.id, met: sport.met };
     input.value = clearOnSelect ? '' : sport.name;
     close();
     onSelect(selected);

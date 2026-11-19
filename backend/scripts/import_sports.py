@@ -24,15 +24,14 @@ with psycopg.connect(DATABASE_URL) as connection:
     for item in items:
         # Insert new sports or update existing IDs, so the import can be run again.
         connection.execute(
-            """INSERT INTO sports(id,name,category,met,aliases)
-               VALUES(%s,%s,%s,%s,%s)
+            """INSERT INTO sports(id,name,met,aliases)
+               VALUES(%s,%s,%s,%s)
                ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name,
-                 category=EXCLUDED.category, met=EXCLUDED.met,
+                 met=EXCLUDED.met,
                  aliases=EXCLUDED.aliases""",
             (
                 item["id"],
                 item["name"],
-                item.get("category"),
                 item.get("met", 6),
                 item.get("aliases", []),
             ),

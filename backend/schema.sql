@@ -69,15 +69,17 @@ CREATE TABLE IF NOT EXISTS body_weights (
 CREATE INDEX IF NOT EXISTS body_weights_user_date ON body_weights(user_id, measured_on DESC);
 CREATE TABLE IF NOT EXISTS sports (
   id text PRIMARY KEY, name text NOT NULL, 
-  category text, met numeric(5,2) NOT NULL DEFAULT 6,
-  aliases text[] NOT NULL DEFAULT '{}', 
-  popularity integer NOT NULL DEFAULT 0
+  met numeric(5,2) NOT NULL DEFAULT 6,
+  aliases text[] NOT NULL DEFAULT '{}'
 );
+ALTER TABLE sports DROP COLUMN IF EXISTS popularity;
+ALTER TABLE sports DROP COLUMN IF EXISTS category;
 CREATE TABLE IF NOT EXISTS user_goals (
   user_id uuid REFERENCES users(id) ON DELETE CASCADE, 
-  goal text NOT NULL, position integer NOT NULL,
+  goal text NOT NULL,
   PRIMARY KEY(user_id, goal)
 );
+ALTER TABLE user_goals DROP COLUMN IF EXISTS position;
 CREATE TABLE IF NOT EXISTS user_sports (
   user_id uuid REFERENCES users(id) ON DELETE CASCADE, 
   sport_id text REFERENCES sports(id),
@@ -148,16 +150,16 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 );
 
 -- Apply this file again to add nutrition support to an existing database.
-ALTER TABLE meals ADD COLUMN IF NOT EXISTS items jsonb NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE meals DROP COLUMN IF EXISTS items;
 CREATE TABLE IF NOT EXISTS meal_estimates (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   status text NOT NULL DEFAULT 'processing',
   items jsonb,
   totals jsonb,
-  totals_edited boolean,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+ALTER TABLE meal_estimates DROP COLUMN IF EXISTS totals_edited;
 CREATE INDEX IF NOT EXISTS meal_estimates_user_date ON meal_estimates(user_id, created_at);
 
 -- Reapplying the schema upgrades existing installations.
