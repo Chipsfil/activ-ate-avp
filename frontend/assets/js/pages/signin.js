@@ -1,6 +1,6 @@
 import { auth, me } from '../api.js';
 import { CONFIG } from '../config.js';
-import { $, setBusy, clearErrors, showError } from '../ui.js';
+import { $, setBusy, clearErrors, showError, homeFor } from '../ui.js';
 import { wireRevealButtons } from './auth-common.js';
 
 const form = $('#signin-form');
@@ -12,7 +12,7 @@ if (params.get('reset')) { const n = $('#expired-note'); n.textContent = 'Passwo
 wireRevealButtons();
 
 // Already signed in? Go straight to the app.
-auth.restore().then((user) => { if (user) location.replace(user.onboarding_step === 'done' ? 'dashboard.html' : 'signup.html'); });
+auth.restore().then((user) => { if (user) location.replace(homeFor(user)); });
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -26,7 +26,7 @@ form.addEventListener('submit', async (e) => {
   try {
     const { user } = await auth.login(username, password);
     const fresh = user || (await me.get());
-    location.href = fresh.onboarding_step === 'done' ? 'dashboard.html' : 'signup.html';
+    location.href = homeFor(fresh);
   } catch (err) {
     setBusy(btn, false);
     showError(form, err.status === 401 ? { message: err.message } : err);

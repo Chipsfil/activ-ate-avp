@@ -6,7 +6,7 @@
  * Data sharing with the network is enabled automatically – there is no sharing step.
  */
 import { auth, me } from '../api.js';
-import { $, $$, esc, setBusy, clearErrors, showError, debounce, toast } from '../ui.js';
+import { $, $$, esc, setBusy, clearErrors, showError, debounce, toast, homeFor } from '../ui.js';
 import { sportCombobox } from '../components/sport-combobox.js';
 
 $('#onboarding-logo').addEventListener('click', async (event) => {
@@ -45,7 +45,7 @@ function showStep(n) {
   const user = await auth.restore();
   if (!user) { showStep(1); return; }
   $('#topbar-right').innerHTML = `Signed in as <b style="color:#fff">${esc(user.username)}</b>`;
-  if (user.onboarding_step === 'done') { location.replace('dashboard.html'); return; }
+  if (user.onboarding_step === 'done') { location.replace(homeFor(user)); return; }
   const t = await me.getTargets().catch(() => null);
   if (t) {
     state.goals = t.goals || [];
@@ -235,16 +235,13 @@ f3.addEventListener('submit', async (e) => {
       nutrition_goals: state.nuts,
       ...(target_kg ? { weight_goal: { target_kg: Number(target_kg), target_date: f3.target_date.value || null } } : {}),
     });
-    const { network } = await me.completeOnboarding();
+    await me.completeOnboarding();
     $('#step-3').hidden = true;
     $('#step-done').hidden = false;
     $('#step-no').textContent = 'Done';
     $('#step-title').textContent = 'Welcome to Activ-Ate';
     $('#step-sub').textContent = 'Your account and plan are ready.';
     $$('#stepper li').forEach((li) => { li.className = 'done'; });
-    $('#network-text').textContent = network.criteria?.length
-      ? `We matched you with a network of ${network.member_count} people with a similar profile. You can compare your progress and cheer each other on.`
-      : 'Your plan is ready. You can view your progress on the dashboard.';
-    $('#network-criteria').innerHTML = (network.criteria || []).map((c) => `<span class="chip" style="cursor:default">${esc(c.label)}: ${esc(c.value)}</span>`).join('');
+    $('#network-text').textContent = 'Your account and plan are ready. You can view your progress on the dashboard.';
   } catch (err) { showError(f3, err); } finally { setBusy(btn, false); }
 });

@@ -1,7 +1,7 @@
 # Activ-Ate – Frontend
 
-Health web app: log workouts and meals, get AI recommendations, and compare yourself with an automatically
-assigned network of similar people. This repository contains the **complete frontend** (plain HTML, CSS and
+Health web app: log workouts and meals, get AI recommendations, and compare yourself with the other
+participants the study admin lets you see. This repository contains the **complete frontend** (plain HTML, CSS and
 JavaScript – no build step) plus the **documentation the backend team needs**.
 
 The backend (Python + PostgreSQL + Claude/OpenAI API) is **not built yet**. Until then a mock backend runs inside the
@@ -10,7 +10,7 @@ browser, so every page already works end to end (data is stored in `localStorage
 | Document | For whom | Content |
 | --- | --- | --- |
 | [docs/API.md](docs/API.md) | Backend developer | Every endpoint with request/response JSON, validation and errors |
-| [docs/BACKEND.md](docs/BACKEND.md) | Backend developer | Architecture, database tables, business rules, network assignment, AI prompts, security |
+| [docs/BACKEND.md](docs/BACKEND.md) | Backend developer | Architecture, database tables, business rules, visibility network (admin-assigned), AI prompts, security |
 
 ---
 
@@ -55,8 +55,8 @@ Or create a new account through the onboarding. To reset all demo data run in th
 | AI Coach | `coach.html` | `POST /coach/messages` |
 
 ### What changed compared to the clickable prototype
-- **Community = automatic network.** Users are matched by height, weight, age and main goal. No "add friend", no friend requests, no messaging. The only interaction is **cheering** a member who reached a goal.
-- **No "share your data" step** in onboarding. Exercise minutes, workouts, streaks and water are shared with the network automatically; meals and body weight stay private (shown to the user in onboarding and on the Goals page).
+- **Community = admin-assigned network.** The admin decides in the admin panel (or via CSV) whom each participant sees ("ID 1 sees ID 2", one direction). There is no automatic matching, no "add friend", no friend requests and no messaging. The only interaction is **cheering** a member who reached a goal. Participants who see nobody have no Community.
+- **No "share your data" step** in onboarding. Exercise minutes, workouts, streaks and water are shared automatically with the participants who see you; meals and body weight stay private (shown to the user in onboarding and on the Goals page).
 - **Sports are typed with autocomplete** (onboarding, goals, workout logging). Users can also keep their own text if a sport is not in the list. The list comes from `GET /sports` – later ~1000 sports with calories per minute; seed data in `assets/data/sports.json`.
 - **Daily check-in** for water on the dashboard (needed for the water comparison).
 - Onboarding has 3 steps: About you → Goals & sports → Targets.

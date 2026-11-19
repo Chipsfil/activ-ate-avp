@@ -11,11 +11,13 @@ from .common import (
     conn,
     current_weight,
     err,
+    estimate_workout_calories,
     iso,
     parse_date,
     week_start,
     weekly_target,
 )
+from .community import _leaderboard
 
 bp = Blueprint("activity", __name__)
 
@@ -282,6 +284,40 @@ def dashboard():
                 }
             )
         streak = streak_summary(connection, g.user_id)
+        _, network_rows = _leaderboard(connection, g.user_id, "exercise")
+        network_top = [
+            {
+                "member_id": row["member_id"],
+                "display_name": row["display_name"],
+                "initials": row["initials"],
+                "is_me": row["is_me"],
+                "value": row["value"],
+                "rank": row["rank"],
+            }
+            for row in network_rows[:5]
+        ]
+        leader = network_rows[0] if network_rows else None
+        me = next((row for row in network_rows if row["is_me"]), None)
+        network_note = (
+            f"You are {round(leader['value'] - me['value'])} min behind {leader['display_name']}."
+            if leader and me and leader["member_id"] != "me" and leader["value"] > me["value"]
+            else ""
+        )
+        feed = [
+            {
+                "id": f"{row['member_id']}-exercise",
+                "member_id": row["member_id"],
+                "display_name": row["display_name"],
+                "initials": row["initials"],
+                "habit": "exercise",
+                "text": "reached the weekly exercise goal",
+                "cheered_by_me": row["cheered_by_me"],
+                "cheer_count": row["cheer_count"],
+                "can_cheer": row["can_cheer"],
+            }
+            for row in network_rows
+            if not row["is_me"] and row["goal_reached"]
+        ][:5]
     return {
         "date": iso(day),
         "checkin": dict(log) if log else {"water_l": None},
@@ -296,9 +332,9 @@ def dashboard():
         "streak": streak,
         "goal_progress": progress,
         "recent_workouts": [workout_json(row) for row in recent],
-        "network_top": [],
-        "network_note": "",
-        "feed": [],
+        "network_top": network_top,
+        "network_note": network_note,
+        "feed": feed,
     }
 
 
@@ -358,8 +394,12 @@ def create_workout():
         sport_id = sport["id"] if sport else values.get("sport_id")
         sport_name = sport["name"] if sport else values["sport"]
         met = float(sport["met"]) if sport else 6
-        # MET estimates calories per kilogram of body weight per hour.
-        kcal = round(met * current_weight(connection, g.user_id) * duration / 60)
+        kcal = estimate_workout_calories(
+            met,
+            current_weight(connection, g.user_id),
+            duration,
+            values.get("intensity", "medium"),
+        )
         row = connection.execute(
             "INSERT INTO workouts(user_id,sport_id,sport_name,title,performed_on,"
             "duration_min,distance_km,intensity,notes,kcal,status) "

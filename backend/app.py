@@ -13,6 +13,7 @@ from api import (
     recommendations,
     coach,
     system,
+    admin,
 )
 from config import FRONTEND_ORIGIN, HOST, PORT
 from api.common import err
@@ -30,6 +31,7 @@ for module in (
     recommendations,
     coach,
     system,
+    admin,
 ):
     app.register_blueprint(module.bp)
 

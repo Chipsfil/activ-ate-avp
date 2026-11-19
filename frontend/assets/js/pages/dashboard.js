@@ -1,8 +1,11 @@
 import { dashboard, recommendations, workouts, community, me as meApi } from '../api.js';
-import { initPage, $, $$, esc, fmt, pct, track, todayISO, formatDate, relativeDay, toast, setBusy, clearErrors, showError, icons } from '../ui.js';
+import { initPage, communityEnabled, $, $$, esc, fmt, pct, track, todayISO, formatDate, relativeDay, toast, setBusy, clearErrors, showError, icons } from '../ui.js';
 import { mountWorkoutForm } from '../components/workout-form.js';
 
 const user = await initPage('dashboard');
+if (!communityEnabled(user)) {
+  ['#network-top', '#feed'].forEach((sel) => { const card = $(sel)?.closest('section'); if (card) card.hidden = true; });
+}
 const hour = new Date().getHours();
 $('#greeting').textContent = `${hour < 11 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'}, ${user.first_name}`;
 $('#today-label').textContent = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });

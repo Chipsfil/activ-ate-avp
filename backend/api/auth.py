@@ -94,6 +94,17 @@ def register():
                     values["height_cm"],
                 ),
             ).fetchone()
+            participant = connection.execute(
+            "SELECT COALESCE(MAX(participant_no), 0) + 1 AS number "
+            "FROM users WHERE role='user'"
+            ).fetchone()["number"]
+            community_default = connection.execute(
+            "SELECT community_default FROM app_settings WHERE id=true"
+            ).fetchone()
+            connection.execute(
+            "UPDATE users SET participant_no=%s, community_enabled=%s WHERE id=%s",
+            (participant, bool(community_default["community_default"]) if community_default else True, user["id"]),
+            )
             # Save the starting weight as a separate measurement linked to the user.
             connection.execute(
                 "INSERT INTO body_weights(user_id,weight_kg,measured_on) "

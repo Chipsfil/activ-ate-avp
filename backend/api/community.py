@@ -128,9 +128,9 @@ def _member_stats(connection, user, start, end, elapsed, current_user_id, habit)
     return {
         "member_id": "me" if is_me else str(user_id),
         "display_name": (
-            "You" if is_me else user["username"]
+        "You" if is_me else f"{user['first_name']} {user['last_name'][0]}."
         ),
-        "initials": user["username"][:2].upper(),
+        "initials": (user["first_name"][0] + user["last_name"][0]).upper(),
         "is_me": is_me,
         "value": value,
         "target": target,
@@ -148,8 +148,13 @@ def _leaderboard(connection, current_user_id, habit="exercise"):
     start = week_start()
     today = date.today()
     elapsed = (today - start).days + 1
+    visible = connection.execute(
+        "SELECT target_id FROM networks WHERE viewer_id=%s", (current_user_id,)
+    ).fetchall()
+    visible_ids = [str(current_user_id), *[str(row["target_id"]) for row in visible]]
     users = connection.execute(
-        "SELECT id,username FROM users ORDER BY username,id"
+        "SELECT id,username,first_name,last_name FROM users WHERE id = ANY(%s::uuid[]) "
+        "ORDER BY username,id", (visible_ids,)
     ).fetchall()
     rows = [
         _member_stats(connection, user, start, today, elapsed, current_user_id, habit)
@@ -175,16 +180,15 @@ def network():
     if not habit:
         return err("Habit must be exercise or water.", "unsupported_habit", 422, "habit")
     with conn() as connection:
-        # Every registered user belongs to the same community.
         member_count = connection.execute(
-            "SELECT COUNT(*) count FROM users"
+            "SELECT COUNT(*) count FROM networks WHERE viewer_id=%s", (g.user_id,)
         ).fetchone()["count"]
     return {
-        "id": "all-users",
-        "member_count": int(member_count),
-        "criteria": [{"label": "Habit", "value": "Exercise minutes and water"}],
-        "explanation": "All registered users share exercise minutes and water intake in one community.",
-        "shared_data": ["Exercise minutes", "Workout type and duration", "Water intake"],
+        "id": "my-network",
+        "member_count": int(member_count) + 1,
+        "criteria": [],
+        "explanation": "You see a selection of other participants assigned by the study administrator.",
+        "shared_data": ["Exercise minutes", "Workout type and duration", "Streaks", "Water intake"],
     }
 
 
@@ -232,7 +236,7 @@ def member(member_id):
         )
     with conn() as connection:
         row = connection.execute(
-            "SELECT id,username,created_at FROM users WHERE id=%s",
+            "SELECT id,username,first_name,last_name,created_at FROM users WHERE id=%s",
             (member_id,),
         ).fetchone()
         if not row:
@@ -241,7 +245,7 @@ def member(member_id):
         stats = next(
             (item for item in rows if item["member_id"] == str(member_id)), None
         )
-        if not stats:
+        if not stats or stats["is_me"]:
             return err("Member not found.", "not_found", 404)
         # "month" means the last 30 days; "all" includes every date through today.
         if period == "week":
@@ -276,8 +280,8 @@ def member(member_id):
     return {
         "member": {
             "id": str(row["id"]),
-            "display_name": row["username"],
-            "initials": row["username"][:2].upper(),
+            "display_name": f"{row['first_name']} {row['last_name']}",
+            "initials": (row["first_name"][0] + row["last_name"][0]).upper(),
             "joined": iso(row["created_at"].date()),
             "sports": [sport["name"] for sport in sports],
             "rank": stats["rank"],

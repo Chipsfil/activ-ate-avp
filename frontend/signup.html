@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Sign up · Activ-Ate</title>
-  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="assets/img/favicon-64.png" sizes="64x64" type="image/png">
   <link rel="icon" href="assets/img/favicon-32.png" sizes="32x32" type="image/png">
   <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
   <link rel="manifest" href="assets/site.webmanifest">
@@ -14,7 +14,7 @@
 </head>
 <body>
 <header class="topbar">
-  <a class="brand" id="onboarding-logo" href="signin.html" aria-label="Log out and return to sign in" style="padding:0"><img class="brand-logo" src="assets/img/logo-mark.svg" alt="" width="40" height="40"><span class="brand-name">Activ<i>-</i>Ate</span></a>
+  <a class="brand" id="onboarding-logo" href="signin.html" aria-label="Log out and return to sign in" style="padding:0"><img class="brand-logo" src="assets/img/logo-mark.png" alt="" width="40" height="40"><span class="brand-name">Activ<i>-</i>Ate</span></a>
   <span class="small" style="color:var(--side-mute)" id="topbar-right">Already have an account? <a href="signin.html">Log in here</a></span>
 </header>
 
@@ -55,7 +55,7 @@
       <div class="field"><label for="weight_kg">Body weight (kg)</label><input class="input" id="weight_kg" name="weight_kg" type="number" inputmode="decimal" min="30" max="300" step="0.1" required></div>
       <div class="field"><label for="height_cm">Height (cm)</label><input class="input" id="height_cm" name="height_cm" type="number" inputmode="numeric" min="100" max="250" required></div>
     </div>
-    <p class="small muted">Weight, height, age and your goal are used to estimate your calorie needs and to match you with a network of similar people. Your exact weight is never shown to others.</p>
+    <p class="small muted">Weight, height, age and your goal are used to estimate your calorie needs. Your exact weight is never shown to others.</p>
     <div class="row-between" style="border-top:1px solid var(--line-2);padding-top:16px">
       <a href="signin.html" style="font-weight:600">Cancel</a>
       <button class="btn btn--primary" type="submit">Continue</button>
@@ -135,8 +135,7 @@
   <section class="card" id="step-done" hidden style="align-items:flex-start">
     <span class="icon-box" style="width:56px;height:56px"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5"/><circle cx="17.5" cy="9" r="2.5"/><path d="M17 14.5c2.4.2 4 1.8 4.5 4.5"/></svg></span>
     <h2 style="font-size:24px;font-family:var(--font-display)">You're all set!</h2>
-    <p class="muted" id="network-text">We matched you with a network of people with a similar profile.</p>
-    <div class="chips" id="network-criteria"></div>
+    <p class="muted" id="network-text">Your account and plan are ready. You can view your progress on the dashboard.</p>
     <a class="btn btn--primary" href="dashboard.html">Go to my dashboard</a>
   </section>
 </main>

@@ -1,4 +1,5 @@
 import { auth } from '../api.js';
+import { homeFor } from '../ui.js';
 
 const user = await auth.restore();
-location.replace(!user ? 'signin.html' : user.onboarding_step === 'done' ? 'dashboard.html' : 'signup.html');
+location.replace(homeFor(user));

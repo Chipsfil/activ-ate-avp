@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin · Activ-Ate</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="assets/img/favicon-64.png" sizes="64x64" type="image/png">
+  <link rel="icon" href="assets/img/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+  <link rel="manifest" href="assets/site.webmanifest">
+  <meta name="theme-color" content="#0B132B">
+  <link rel="preload" href="assets/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body class="admin-page">
+<a class="sr-only" href="#main">Skip to content</a>
+<div class="app">
+  <aside id="sidebar" class="sidebar"></aside>
+  <main class="main" id="main">
+
+    <div class="page-header">
+      <div>
+        <div class="eyebrow">Admin panel</div>
+        <h1>Study control</h1>
+        <p class="lead">Start or pause the study and decide for every participant whom they see in the Community.</p>
+      </div>
+      <button type="button" class="btn" id="refresh">Refresh</button>
+    </div>
+
+    <section class="kpis" id="kpis" aria-label="Overview">
+      <div class="skeleton" style="height:96px"></div><div class="skeleton" style="height:96px"></div><div class="skeleton" style="height:96px"></div><div class="skeleton" style="height:96px"></div>
+    </section>
+
+    <!-- Study switches -->
+    <section class="card" id="settings" aria-labelledby="settings-title">
+      <div class="card-head"><h2 id="settings-title">Study status</h2><span class="status-pill" id="status-pill">…</span></div>
+      <div class="admin-setting">
+        <div class="grow">
+          <h3>Study running</h3>
+          <p class="small muted">Off = participants can still register and complete onboarding, but then see a waiting page (“Waiting for Activ-Ate to start”) instead of the dashboard. Switch on when everything is ready.</p>
+        </div>
+        <button type="button" class="switch" role="switch" aria-checked="false" id="sw-running" aria-labelledby="sw-running-label"><span class="track-sw"></span><span id="sw-running-label">Paused</span></button>
+      </div>
+      <div class="admin-setting">
+        <div class="grow">
+          <h3>Community for new participants</h3>
+          <p class="small muted">Whether people who register from now on are allowed to have the Community. New participants see nobody at first, so their Community stays off until you connect them. For registered participants use the switch in their row.</p>
+        </div>
+        <button type="button" class="switch" role="switch" aria-checked="true" id="sw-community" aria-labelledby="sw-community-label"><span class="track-sw"></span><span id="sw-community-label">Allowed</span></button>
+      </div>
+    </section>
+
+    <!-- Participants -->
+    <section class="card card--flush" id="participants" aria-labelledby="participants-title">
+      <div class="admin-toolbar">
+        <div><h2 id="participants-title">Participants &amp; network</h2><p class="small muted" id="count-label">&nbsp;</p></div>
+        <div class="row">
+          <label class="input-icon" style="min-width:220px"><span class="sr-only">Search participants</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+            <input class="input" type="search" id="search" placeholder="ID, name, username or email"></label>
+          <label class="row small" style="font-weight:600">Show
+            <select class="input" id="filter" style="width:auto;min-height:44px">
+              <option value="all">Everyone</option>
+              <option value="active">Community on</option>
+              <option value="inactive">Community off</option>
+              <option value="sees-nobody">Sees nobody</option>
+              <option value="unseen">Seen by nobody</option>
+            </select></label>
+          <label class="row small" style="font-weight:600">Sort by
+            <select class="input" id="sort" style="width:auto;min-height:44px">
+              <option value="id">ID (1, 2, 3 …)</option>
+              <option value="id-desc">ID (newest first)</option>
+              <option value="first">First name A–Z</option>
+              <option value="first-desc">First name Z–A</option>
+              <option value="last">Last name A–Z</option>
+              <option value="last-desc">Last name Z–A</option>
+            </select></label>
+        </div>
+      </div>
+      <div class="bulk-bar">
+        <span class="small muted" id="bulk-label">Community switch for all participants shown:</span>
+        <button type="button" class="btn btn--small" id="bulk-on">Allow</button>
+        <button type="button" class="btn btn--small" id="bulk-off">Switch off</button>
+      </div>
+      <div class="table-wrap"><div class="table admin-table" id="users" style="--cols:56px minmax(180px,1.5fr) 84px 96px minmax(120px,1fr) minmax(150px,1.2fr) minmax(90px,.8fr) 120px"></div></div>
+    </section>
+
+    <!-- CSV -->
+    <section class="csv-grid" aria-label="CSV files">
+      <div class="card" id="csv-people" aria-labelledby="csv-people-title">
+        <h2 id="csv-people-title">Participant data (CSV)</h2>
+        <p class="small muted">All personal data, one row per participant with their ID. You can correct <b>first_name, last_name, email, gender, date_of_birth, height_cm, weight_kg</b> and switch <b>community</b> <code>on</code>/<code>off</code>. Empty cells keep the current value; all other columns are ignored.</p>
+        <div class="row">
+          <button type="button" class="btn btn--primary" data-download="participants">Download CSV</button>
+          <label class="btn" for="file-participants">Upload CSV…</label>
+          <input type="file" id="file-participants" data-upload="participants" accept=".csv,text/csv" class="sr-only">
+          <span class="small muted" data-file-name="participants"></span>
+        </div>
+        <div class="import-preview" data-preview="participants" hidden></div>
+      </div>
+
+      <div class="card" id="csv-network" aria-labelledby="csv-network-title">
+        <h2 id="csv-network-title">Network – who sees whom (CSV)</h2>
+        <p class="small muted">One row per direction. The first column is the person who sees, the second the person they see. Name columns are only there to help you and are ignored.</p>
+        <div class="pair-example" aria-label="Example">
+          <div class="pair-table"><span>viewer_id</span><span>sees_id</span><b>ID 1</b><b>ID 2</b><b>ID 2</b><b>ID 1</b><b>ID 1</b><b>ID 3</b></div>
+          <ul class="small muted">
+            <li>ID 1 sees ID 2 and ID 3</li>
+            <li>ID 2 sees ID 1 (so 1 and 2 see each other)</li>
+            <li>ID 3 sees nobody → Community off</li>
+          </ul>
+        </div>
+        <p class="small muted"><b>The upload replaces the whole network.</b> Everyone who does not appear in the first column sees nobody afterwards. You see all changes before anything is saved.</p>
+        <div class="row">
+          <button type="button" class="btn btn--primary" data-download="network">Download CSV</button>
+          <label class="btn" for="file-network">Upload CSV…</label>
+          <input type="file" id="file-network" data-upload="network" accept=".csv,text/csv" class="sr-only">
+          <span class="small muted" data-file-name="network"></span>
+        </div>
+        <div class="import-preview" data-preview="network" hidden></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<dialog class="modal" id="confirm" aria-labelledby="confirm-title">
+  <form method="dialog" class="modal-body">
+    <h2 id="confirm-title">Are you sure?</h2>
+    <p class="muted" id="confirm-text"></p>
+    <div class="row" style="justify-content:flex-end">
+      <button class="btn" value="cancel">Cancel</button>
+      <button class="btn btn--primary" value="ok" id="confirm-ok">Confirm</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="modal modal--wide" id="sees-dialog" aria-labelledby="sees-title">
+  <form method="dialog" class="modal-body" id="sees-form">
+    <div>
+      <h2 id="sees-title">Whom does … see?</h2>
+      <p class="small muted" id="sees-sub">Tick everyone this participant should see in their Community. This is one direction only.</p>
+    </div>
+    <div class="row">
+      <label class="input-icon grow"><span class="sr-only">Search</span>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <input class="input" type="search" id="sees-search" placeholder="Search ID or name"></label>
+      <button type="button" class="btn btn--small" id="sees-all">Tick all shown</button>
+      <button type="button" class="btn btn--small" id="sees-none">Untick all</button>
+    </div>
+    <div class="sees-list" id="sees-list" role="group" aria-label="Participants"></div>
+    <div class="row-between">
+      <span class="small muted" id="sees-count"></span>
+      <div class="row">
+        <button class="btn" value="cancel" formnovalidate>Cancel</button>
+        <button type="button" class="btn btn--primary" id="sees-save">Save</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<script type="module" src="assets/js/pages/admin.js"></script>
+</body>
+</html>

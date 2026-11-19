@@ -80,6 +80,23 @@ def user_json(connection, user_id):
         "WHERE user_id=%s ORDER BY measured_on DESC, created_at DESC LIMIT 1",
         (user_id,),
     ).fetchone()
+    user = dict(user)
+    role = user["role"]
+    if role == "admin":
+        app_state = {"paused": False, "community_enabled": True}
+        network_id = None
+    else:
+        settings = connection.execute(
+            "SELECT experiment_paused FROM app_settings WHERE id=true"
+        ).fetchone()
+        has_network = connection.execute(
+            "SELECT 1 FROM networks WHERE viewer_id=%s LIMIT 1", (user_id,)
+        ).fetchone()
+        app_state = {
+            "paused": bool(settings["experiment_paused"]) if settings else False,
+            "community_enabled": bool(user["community_enabled"] and has_network),
+        }
+        network_id = "my-network" if has_network else None
 
     # Convert database UUIDs, dates, and decimal numbers to API response values.
     return {
@@ -93,8 +110,11 @@ def user_json(connection, user_id):
         "date_of_birth": iso(user["date_of_birth"]),
         "height_cm": float(user["height_cm"]),
         "onboarding_step": user["onboarding_step"],
+        "role": role,
         "goals": goals,
         "sports": sports,
+        "network_id": network_id,
+        "app": app_state,
         "current_weight_kg": float(weight["weight_kg"]) if weight else None,
         "created_at": user["created_at"].isoformat(),
     }
@@ -120,10 +140,44 @@ def auth_required(view_function):
         # A valid token may belong to a user whose account has since been deleted.
         with conn() as connection:
             user_exists = connection.execute(
-                "SELECT 1 FROM users WHERE id=%s", (user_id,)
+                "SELECT role FROM users WHERE id=%s", (user_id,)
             ).fetchone()
             if not user_exists:
                 return err("User not found.", "unauthorized", 401)
+            g.role = user_exists["role"]
+            if g.role != "admin":
+                settings = connection.execute(
+                    "SELECT experiment_paused FROM app_settings WHERE id=true"
+                ).fetchone()
+                path = request.path.removeprefix("/api/v1")
+                open_paths = (
+                    path == "/me"
+                    or path.startswith("/me/")
+                    or path == "/sports"
+                    or path == "/goals/check"
+                    or path.startswith("/auth/")
+                )
+                if settings and settings["experiment_paused"] and not open_paths:
+                    return err(
+                        "Activ-Ate has not started yet. Please wait for the start of the study.",
+                        "experiment_paused",
+                        423,
+                    )
+                if path.startswith("/community/") or path == "/feed":
+                    has_network = connection.execute(
+                        "SELECT 1 FROM networks WHERE viewer_id=%s LIMIT 1",
+                        (user_id,),
+                    ).fetchone()
+                    enabled = connection.execute(
+                        "SELECT community_enabled FROM users WHERE id=%s",
+                        (user_id,),
+                    ).fetchone()
+                    if not has_network or not enabled["community_enabled"]:
+                        return err(
+                            "The Community is not available.",
+                            "community_disabled",
+                            403,
+                        )
 
         # g stores values for this request, so the route can use the verified ID.
         g.user_id = user_id
@@ -188,6 +242,20 @@ def current_weight(connection, user_id):
         return float(row["weight_kg"])
     # Keep the calorie estimate available before a weight has been recorded.
     return 70.0
+
+
+def estimate_workout_calories(met, weight_kg, duration_min, intensity="medium"):
+    """Estimate active calories with the standard MET formula.
+
+    The Compendium MET formula uses body weight and activity duration:
+    kcal = MET * weight_kg * duration_hours.
+    Height does not enter this standard estimate. Intensity is an additional
+    app-level modifier because catalogue MET values represent medium effort.
+    """
+    intensity_factor = {"light": 0.8, "medium": 1.0, "high": 1.2}.get(
+        intensity, 1.0
+    )
+    return round(float(met) * float(weight_kg) * float(duration_min) / 60 * intensity_factor)
 
 
 def week_start(day=None):

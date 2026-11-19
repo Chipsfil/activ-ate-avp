@@ -127,12 +127,11 @@ Validation: minutes 5–300, sessions 1–7, target date in the future. Invalida
 `200 Targets`.
 
 ### `POST /me/onboarding/complete`
-Fills default nutrition goals if none were given, **assigns the user to a network** (BACKEND.md › Network assignment),
-sets `onboarding_step = "done"`. No sharing settings exist: community data is shared automatically.
+Fills default nutrition goals if none were given and sets `onboarding_step = "done"`. There is **no matching**:
+a new participant sees nobody until the admin connects them (see "Admin & study control"). No sharing settings
+exist: community data is shared automatically with the participants who see this person.
 ```json
-{ "network": { "id": "net-4rhtlq", "member_count": 8,
-  "criteria": [{ "label": "Height", "value": "170–179 cm" }, { "label": "Weight", "value": "60–69 kg" },
-               { "label": "Age", "value": "20–29 years" }, { "label": "Main goal", "value": "Gain muscle" }] } }
+{ "network": { "id": "my-network", "member_count": 1, "criteria": [] } }
 ```
 
 ### `POST /goals/check`
@@ -261,17 +260,18 @@ The dashboard's "Add to my plan" creates `POST /workouts` with `status: "planned
 
 ---
 
-## 9. Community (automatic network – no friends, no messages)
+## 9. Community (admin-assigned network – no friends, no messages)
 
-Users are **assigned automatically** to a network of similar people (BACKEND.md › Network assignment).
+The **admin decides** whom each participant sees (BACKEND.md › Visibility network; endpoints under
+"Admin & study control"). A participant's Community contains only themselves plus those people.
 There is no friend request, no search for other users and no messaging. The only social action is a **cheer**
 for a member who reached their goal. Habits: `exercise | water`.
 
 ### `GET /community/network`
 ```json
-{ "id": "net-4rhtlq", "member_count": 8,
-  "criteria": [{ "label": "Height", "value": "170–179 cm" }, …],
-  "explanation": "You were matched automatically with people of similar height, weight, age and main goal…",
+{ "id": "my-network", "member_count": 5,
+  "criteria": [],
+  "explanation": "For this study you see a selection of other participants. You only see the people shown here.",
   "shared_data": ["Exercise minutes", "Workout type and duration", "Streaks", "Water intake"] }
 ```
 
@@ -386,3 +386,52 @@ creates planned workouts via `POST /workouts`. Text 1–1000 chars; 50 messages/
 | 37 | GET | /coach/conversations/latest | – | AI Coach |
 | 38 | POST | /coach/conversations | – | AI Coach |
 | 39 | POST | /coach/messages | ✓ | AI Coach, Nutrition |
+
+
+---
+
+## Admin & study control
+
+`GET /me` (and the `user` object in login/refresh responses) contains:
+
+```json
+{ "role": "user", "app": { "paused": false, "community_enabled": true } }
+```
+
+`role` is `"admin"` for the admin account. The frontend routes with it:
+admin → `admin.html`, onboarding unfinished → `signup.html`,
+`app.paused` → `waiting.html`, otherwise `dashboard.html`.
+`app.community_enabled` is true only if the participant sees at least one
+other participant and the admin switch for them is on.
+
+While the study is paused every participant route except `/auth/*`, `/me`,
+`/me/*`, `/sports` and `/goals/check` answers
+`423 { "error": "experiment_paused" }`. Without Community, `/community/*` and
+`/feed` answer `403 { "error": "community_disabled" }`. The Community
+endpoints only return the caller plus the participants the admin lets them see.
+
+All admin routes require the admin account (403 otherwise). Participants are
+identified in the UI and in CSV files by `participant_no` (shown as `ID 7`).
+
+| Method | Path | Body | Response |
+| --- | --- | --- | --- |
+| GET | `/admin/overview` | – | `{ settings, connections, users:[{ id, participant_no, …profile, sees:[2,3], seen_by:[3], community_enabled, community_active }] }` |
+| PUT | `/admin/settings` | `{ experiment_paused?: bool, community_default?: bool }` | `{ settings }` |
+| PUT | `/admin/users/{id}/visibility` | `{ sees: [2, 5] }` (replaces whom this participant sees) | overview |
+| PUT | `/admin/users/{id}/community` | `{ enabled: bool }` | `{ user_id, community_enabled }` |
+| POST | `/admin/community` | `{ enabled: bool, user_ids?: [...] }` (no ids = everyone) | overview + `message` |
+| GET | `/admin/export/participants` | – | `{ filename, csv, rows }` (`;`-separated; columns `id … sees; seen_by; community`) |
+| POST | `/admin/import/participants` | `{ csv, dry_run }` | `{ changes:[{participant_no, name, fields:{field:{from,to}}}], unchanged, not_in_file, errors, applied }`; `422` with `errors` (nothing applied) |
+| GET | `/admin/export/network` | – | `{ filename, csv, rows }` – columns `viewer_id;sees_id;viewer_name;sees_name` |
+| POST | `/admin/import/network` | `{ csv, dry_run }` | `{ pairs, added:[…], removed:[…], unchanged, mutual, sees_nobody:[IDs], warnings, errors, applied }`; `422` with `errors` (nothing applied) |
+
+**Participant CSV import:** rows matched by `id` (`ID 7` or `7`) or `username`.
+Only `first_name, last_name, email, gender, date_of_birth, height_cm,
+weight_kg, community` are used; empty cells keep the current value (dates as
+`1998-03-05` or `05.03.1998`; `weight_kg` adds a weight entry for today).
+
+**Network CSV import:** each row is `viewer ; seen` (`ID 1;ID 2` = ID 1 sees
+ID 2). IDs as `ID 1` or `1`, header row optional, `;` `,` or tab. The file
+replaces the whole network: participants who never appear in the first column
+see nobody afterwards. Self pairs and unknown IDs are errors; duplicates are
+counted once.

@@ -79,6 +79,9 @@ def save_goals():
 @auth_required
 def get_targets():
     with conn() as connection:
+        user = connection.execute(
+            "SELECT gender,date_of_birth,height_cm FROM users WHERE id=%s", (g.user_id,)
+        ).fetchone()
         user_goals = connection.execute(
             "SELECT goal FROM user_goals WHERE user_id=%s ORDER BY position",
             (g.user_id,),
@@ -95,6 +98,15 @@ def get_targets():
         weight = current_weight(connection, g.user_id)
         nutrition_goals = connection.execute("SELECT nutrient,amount FROM nutrition_goals WHERE user_id=%s ORDER BY nutrient", (g.user_id,)).fetchall()
         weight_goal = connection.execute("SELECT start_kg,target_kg,target_date FROM weight_goals WHERE user_id=%s", (g.user_id,)).fetchone()
+        age = date.today().year - user["date_of_birth"].year - (
+            (date.today().month, date.today().day)
+            < (user["date_of_birth"].month, user["date_of_birth"].day)
+        )
+        sex_adjustment = {"male": 5, "female": -161}.get(user["gender"], -78)
+        bmr = 10 * weight + 6.25 * float(user["height_cm"]) - 5 * age + sex_adjustment
+        goals_set = {row["goal"] for row in user_goals}
+        kcal = round((bmr * 1.55 + (250 if "gain_muscle" in goals_set else -400 if "lose_weight" in goals_set else 0)) / 50) * 50
+        protein_default = round(weight * (1.8 if "gain_muscle" in goals_set else 1.4))
     return {
         "goals": [row["goal"] for row in user_goals],
         "sports": [
@@ -113,6 +125,7 @@ def get_targets():
         "nutrition_goals": [{"nutrient": row["nutrient"], "amount": float(row["amount"]), "unit": NUTRIENT_UNITS[row["nutrient"]]} for row in nutrition_goals if row["nutrient"] in NUTRIENT_UNITS],
         "weight_goal": {"start_kg": float(weight_goal["start_kg"]), "target_kg": float(weight_goal["target_kg"]), "target_date": weight_goal["target_date"].isoformat() if weight_goal["target_date"] else None, "current_kg": weight} if weight_goal else None,
         "current_weight_kg": weight,
+        "computed_defaults": {"kcal": kcal, "protein_g": protein_default},
     }
 
 
@@ -242,16 +255,93 @@ def save_targets():
 @auth_required
 def complete():
     with conn() as connection:
+        existing = connection.execute(
+            "SELECT 1 FROM nutrition_goals WHERE user_id=%s LIMIT 1", (g.user_id,)
+        ).fetchone()
+        if not existing:
+            user = connection.execute(
+                "SELECT gender,date_of_birth,height_cm FROM users WHERE id=%s",
+                (g.user_id,),
+            ).fetchone()
+            weight = current_weight(connection, g.user_id)
+            today = date.today()
+            age = today.year - user["date_of_birth"].year - (
+                (today.month, today.day)
+                < (user["date_of_birth"].month, user["date_of_birth"].day)
+            )
+            sex_adjustment = {"male": 5, "female": -161}.get(user["gender"], -78)
+            bmr = 10 * weight + 6.25 * float(user["height_cm"]) - 5 * age + sex_adjustment
+            goals = {
+                row["goal"]
+                for row in connection.execute(
+                    "SELECT goal FROM user_goals WHERE user_id=%s", (g.user_id,)
+                )
+            }
+            kcal = round((bmr * 1.55 + (250 if "gain_muscle" in goals else -400 if "lose_weight" in goals else 0)) / 50) * 50
+            protein = round(weight * (1.8 if "gain_muscle" in goals else 1.4))
+            fat = round(kcal * 0.30 / 9)
+            carbs = round(max(0, (kcal - protein * 4 - fat * 9) / 4))
+            with connection.cursor() as cursor:
+                cursor.executemany(
+                    "INSERT INTO nutrition_goals(user_id,nutrient,amount) VALUES(%s,%s,%s)",
+                    [(g.user_id, "calories", kcal), (g.user_id, "protein", protein),
+                     (g.user_id, "fat", fat), (g.user_id, "carbs", carbs),
+                     (g.user_id, "water", 2)],
+                )
         connection.execute(
             "UPDATE users SET onboarding_step='done' WHERE id=%s", (g.user_id,)
         )
         connection.commit()
-    # Keep the existing onboarding response for the shared community.
-    return {"network": {"id": "all-users", "member_count": 1}}
+    return {"network": {"id": "my-network", "member_count": 1, "criteria": []}}
 
 
 @bp.post("/api/v1/goals/check")
 @auth_required
 def goal_check():
-    # Automatic goal checks are not implemented yet.
-    return {"checks": []}
+    values = body()
+    activity_goals = values.get("activity_goals") or []
+    planned = sum(
+        int(goal.get("minutes_per_session", 0)) * int(goal.get("sessions_per_week", 0))
+        for goal in activity_goals
+        if isinstance(goal, dict)
+    )
+    checks = [{
+        "status": "ok" if planned >= 150 else "warning",
+        "text": (
+            f"{planned} exercise minutes per week planned – meets the WHO recommendation of 150 min."
+            if planned >= 150
+            else f"{planned} exercise minutes per week planned – below the WHO recommendation of 150 min."
+        ),
+    }]
+    weight_goal = values.get("weight_goal")
+    if weight_goal and weight_goal.get("target_date") and weight_goal.get("target_kg") is not None:
+        try:
+            target_date = date.fromisoformat(weight_goal["target_date"])
+            current = float(values.get("current_weight_kg"))
+            weeks = max((target_date - date.today()).days / 7, 1 / 7)
+            rate = abs(float(weight_goal["target_kg"]) - current) / weeks
+            checks.append({
+                "status": "ok" if rate <= 0.5 else "warning",
+                "text": f"Weight change of {rate:.1f} kg per week is {'within' if rate <= 0.5 else 'above'} the recommended maximum of 0.5 kg.",
+            })
+        except (TypeError, ValueError):
+            pass
+    nutrition = {
+        item.get("nutrient"): item.get("amount")
+        for item in values.get("nutrition_goals", [])
+        if isinstance(item, dict)
+    }
+    if "protein" in nutrition:
+        try:
+            weight = float(values.get("current_weight_kg"))
+            protein_per_kg = float(nutrition["protein"]) / weight
+            goals = values.get("goals") or []
+            low = 1.6 if "gain_muscle" in goals else 0.8
+            status = "ok" if low <= protein_per_kg <= 2.4 else "warning"
+            checks.append({
+                "status": status,
+                "text": f"Protein target is {protein_per_kg:.1f} g/kg – {'within' if status == 'ok' else 'outside'} the recommended range.",
+            })
+        except (TypeError, ValueError, ZeroDivisionError):
+            pass
+    return {"checks": checks}

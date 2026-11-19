@@ -27,7 +27,7 @@ backend/
   app/config.py            # settings from env: DATABASE_URL, JWT_SECRET, LLM_API_KEY, LLM_MODEL, SMTP_*
   app/auth/                # register, login, refresh, logout, reset
   app/routers/             # me.py, sports.py, dashboard.py, workouts.py, nutrition.py, community.py, coach.py
-  app/services/            # targets.py, streaks.py, network.py, calories.py, ai.py (all LLM calls in one place)
+  app/services/            # targets.py, streaks.py, visibility.py, calories.py, ai.py (all LLM calls in one place)
   app/models.py            # SQLAlchemy models
   alembic/                 # migrations
   scripts/import_sports.py # loads the sports list (CSV/JSON) into the sports table
@@ -44,7 +44,7 @@ Every router depends on `get_current_user()` (verifies the JWT) except the publi
 | `users` | id (uuid pk), username (unique, citext), email (unique, citext), password_hash, first_name, last_name, gender, date_of_birth, height_cm, onboarding_step (text: '2','3','4','done'), created_at | |
 | `sessions` | id, user_id → users, refresh_token_hash, expires_at, revoked_at, created_at | refresh tokens |
 | `body_weights` | id, user_id, weight_kg, measured_on | history; latest row = current weight |
-| `user_goals` | user_id, goal (enum lose_weight/gain_muscle/improve_stamina), position | position 0 = primary goal (used for network) |
+| `user_goals` | user_id, goal (enum lose_weight/gain_muscle/improve_stamina), position | position 0 = primary goal |
 | `sports` | id (text slug pk), name, category, met, popularity | ~1000 rows, imported (see §5) |
 | `sport_aliases` | sport_id → sports, alias | for search ("gym", "unihockey") |
 | `user_sports` | user_id, sport_id (nullable), name | free text allowed (sport_id null) |
@@ -56,14 +56,13 @@ Every router depends on `get_current_user()` (verifies the JWT) except the publi
 | `meal_items` | id, meal_id, name, amount_g, kcal, protein_g, carbs_g, fat_g, assumed | |
 | `ai_meal_estimates` | id, user_id, input_text, model, response_json, status (pending/confirmed/discarded), created_at | |
 | `daily_logs` | user_id, log_date, water_l | pk (user_id, log_date) |
-| `networks` | id, criteria_json, created_at | auto-assigned groups |
-| `network_members` | network_id, user_id, joined_at, left_at | one active row per user |
+| `visibility` | viewer_id, target_id, created_at | "viewer sees target", set by the admin (one row per direction) |
 | `cheers` | id, from_user, to_user, habit, week_start, created_at | unique (from_user, to_user, habit, week_start) |
 | `ai_recommendations` | id, user_id, kind (daily/workout/nutrition/insights_exercise/…), content_json, created_at, valid_until | cache |
 | `chat_conversations` / `chat_messages` | id, user_id, created_at / id, conversation_id, role, content, tokens_in, tokens_out, created_at | |
 
 **Removed compared to the earlier concept:** `friendships`, `sharing_settings`, `nudges`/messages, `challenges`.
-Community data is shared automatically within a network; the only interaction is `cheers`.
+Community data is shared automatically with the participants who see you; the only interaction is `cheers`.
 
 ---
 
@@ -98,27 +97,17 @@ Community data is shared automatically within a network; the only interaction is
 
 ---
 
-## 4. Network assignment (replaces friends)
+## 4. Visibility network (set by the admin – no automatic matching)
 
-Goal: everyone is compared with people who are **similar**, so rankings feel fair and motivating. Users cannot add,
-remove or message members.
+There is **no automatic matching**. Every participant gets a fixed ID (`users.participant_no`, ID 1 … ID N in order
+of registration). The admin decides in the admin panel, or with the network CSV, whom each participant sees.
+One row in `visibility(viewer_id, target_id)` means "viewer sees target" – one direction only; for both directions
+there are two rows. New participants have no rows: they see nobody and nobody sees them until the admin connects
+them. A participant who sees nobody has no Community (tab hidden, `/community/*` and `/feed` answer 403); the
+admin can additionally switch the Community off per person (`users.community_enabled`).
+Implemented in `backend/api/experiment.py` and `backend/api/admin.py`. Users cannot add, remove or message members.
 
-**When:** at `POST /me/onboarding/complete`; re-evaluated at most once a month if weight changes by more than 5 kg,
-the primary goal changes or the age band changes. Membership history is kept in `network_members` (`left_at`).
-
-**Algorithm (prototype version, simple and explainable):**
-1. Build a bucket key from the profile: height band (10 cm), weight band (10 kg, or BMI band), age band (10 years), primary goal.
-   Optional later: gender, activity level (weekly target minutes).
-2. Find an open network (fewer than **12** active members) whose `criteria_json` has the same key → join it.
-3. If none exists, create a new network with that key.
-4. Networks with fewer than **5** members after 7 days are merged with the nearest bucket (relax in this order:
-   weight band ±1 → height band ±1 → age band → goal) so nobody stays alone.
-5. Return `criteria` as human-readable chips (`Height: 170–179 cm`, …). Never show other users' exact weight.
-
-**Later improvement:** k-means / nearest-neighbour clustering on standardized features (height, weight/BMI, age, goal one-hot,
-weekly target minutes) with a size constraint of 8–12, recomputed monthly.
-
-**Leaderboard values** (`GET /community/leaderboard`): for each active member of the user's network, compute
+**Leaderboard values** (`GET /community/leaderboard`): for the user and every participant they see, compute
 `value`, `target`, `streak`, `change_pct` (vs. same days of last week), `active_today`, `goal_reached` as defined in API.md §9.
 `goal_reached`: exercise → minutes this week ≥ weekly target; water → value ≥ daily target × days elapsed.
 
@@ -126,7 +115,7 @@ weekly target minutes) with a size constraint of 8–12, recomputed monthly.
 calories, body weight, notes, email. Display name = first name + last initial (full name only on the member profile).
 This is shown to users during onboarding and on the Goals page; mention it in the privacy policy.
 
-**Cheers:** allowed only if `goal_reached` is true, the target is in the same network, and the sender has not cheered
+**Cheers:** allowed only if `goal_reached` is true, the sender sees the target, and the sender has not cheered
 that member for that habit in the current week (unique constraint). Cheers appear as a count; no free text.
 
 **Feed:** generated from events detected when data is saved: weekly exercise goal reached, water target met all
@@ -172,7 +161,7 @@ Rules for every AI call:
 
 - Argon2/bcrypt password hashes; JWT signed with a secret from env (HS256) or key pair; access token 15 min.
 - Refresh token in `HttpOnly; Secure; SameSite=Strict` cookie, hashed in DB, rotated on every refresh, revoked on logout/reset.
-- Every query filters by `user_id`; member endpoints check that both users are in the same active network.
+- Every query filters by `user_id`; member endpoints check that the caller sees the requested participant.
 - Pydantic validation for every body; SQL only via ORM/bound parameters.
 - Rate limits: login 5/15 min per username+IP, AI endpoints as in §6.
 - Use HTTPS for production deployments; the simple Python static server is intended for local or disposable demos.

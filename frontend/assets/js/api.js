@@ -73,6 +73,16 @@ async function request(method, path, body, { retryOn401 = true } = {}) {
     window.location.href = 'signin.html?expired=1';
     throw new ApiError(401, data);
   }
+  // The admin paused the study while this page was open → show the waiting page.
+  if (status === 423 && data && data.error === 'experiment_paused' && !location.pathname.endsWith('waiting.html')) {
+    window.location.href = 'waiting.html';
+    throw new ApiError(status, data);
+  }
+  // The admin switched the Community off for this participant → back to the dashboard.
+  if (status === 403 && data && data.error === 'community_disabled' && /\/(community|member)\.html$/.test(location.pathname)) {
+    window.location.href = 'dashboard.html';
+    throw new ApiError(status, data);
+  }
   if (status < 200 || status >= 300) {
     const body = data && typeof data === 'object' ? data : {};
     if (!body.message) {
@@ -186,5 +196,28 @@ export const coach = {
   send: (conversation_id, text, topic = 'general') => post('/coach/messages', { conversation_id, text, topic }),
 };
 
-export const api = { auth, me, sports, dashboard, workouts, nutrition, recommendations, community, coach };
+/* ---------------------------------------------------------------- Admin */
+/** Admin panel only. Every endpoint answers 403 for normal participants. */
+export const admin = {
+  /** GET /admin/overview → { settings, connections, users:[{ participant_no, sees:[], seen_by:[], community_enabled, community_active, … }] } */
+  overview: () => get('/admin/overview'),
+  /** PUT /admin/settings { experiment_paused?, community_default? } */
+  saveSettings: (payload) => put('/admin/settings', payload),
+  /** PUT /admin/users/{id}/visibility { sees: [2, 5] } – whom this participant sees (replaces the list) */
+  setVisibility: (userId, sees) => put(`/admin/users/${encodeURIComponent(userId)}/visibility`, { sees }),
+  /** PUT /admin/users/{id}/community { enabled } – admin switch for one participant */
+  setCommunity: (userId, enabled) => put(`/admin/users/${encodeURIComponent(userId)}/community`, { enabled }),
+  /** POST /admin/community { enabled, user_ids? } – several participants (no ids = everyone) */
+  setCommunityMany: (enabled, user_ids) => post('/admin/community', { enabled, user_ids }),
+  /** GET /admin/export/participants → { filename, csv, rows } – personal data */
+  exportParticipants: () => get('/admin/export/participants'),
+  /** POST /admin/import/participants { csv, dry_run } → preview or applied changes */
+  importParticipants: (csv, dry_run = true) => post('/admin/import/participants', { csv, dry_run }),
+  /** GET /admin/export/network → { filename, csv, rows } – one row per "viewer sees target" pair */
+  exportNetwork: () => get('/admin/export/network'),
+  /** POST /admin/import/network { csv, dry_run } → replaces the whole network (preview first) */
+  importNetwork: (csv, dry_run = true) => post('/admin/import/network', { csv, dry_run }),
+};
+
+export const api = { auth, me, sports, dashboard, workouts, nutrition, recommendations, community, coach, admin };
 export default api;

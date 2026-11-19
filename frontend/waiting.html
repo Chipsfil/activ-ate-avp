@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Starting soon · Activ-Ate</title>
+  <link rel="icon" href="assets/img/favicon-64.png" sizes="64x64" type="image/png">
+  <link rel="icon" href="assets/img/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+  <link rel="manifest" href="assets/site.webmanifest">
+  <meta name="theme-color" content="#0B132B">
+  <link rel="preload" href="assets/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+<div class="auth">
+  <aside class="auth-brand">
+    <span class="brand" style="padding:0"><img class="brand-logo" src="assets/img/logo-mark.png" alt="" width="40" height="40"><span class="brand-name">Activ<i>-</i>Ate</span></span>
+    <div style="margin-top:auto;margin-bottom:auto" class="stack-lg">
+      <h2>Move more. Eat smarter. Do it together.</h2>
+      <p>Thank you for joining the study. Everyone is registering now – once all participants are ready, Activ-Ate opens for everybody at the same time.</p>
+    </div>
+  </aside>
+
+  <main class="auth-main">
+    <section class="auth-card" aria-labelledby="wait-title">
+      <div class="waiting-pulse" aria-hidden="true"><span class="spinner"></span></div>
+      <div class="stack" style="gap:10px">
+        <p class="eyebrow-text">You're registered</p>
+        <h1 id="wait-title">Waiting for Activ-Ate to start</h1>
+        <p class="muted" id="wait-text">Your account and your plan are saved. The study hasn't started yet – as soon as it begins, you can use your dashboard, log workouts and meals, and talk to the AI Coach.</p>
+      </div>
+      <div class="info" role="status" aria-live="polite" id="wait-status">This page checks automatically every few seconds. You can also close it and sign in again later.</div>
+      <div class="row-between">
+        <span class="small muted" id="wait-user"></span>
+        <div class="row">
+          <button type="button" class="btn" id="check-now">Check again</button>
+          <button type="button" class="btn btn--link" id="logout">Log out</button>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<script type="module" src="assets/js/pages/waiting.js"></script>
+</body>
+</html>

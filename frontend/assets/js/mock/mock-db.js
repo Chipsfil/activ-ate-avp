@@ -39,6 +39,8 @@ export function db() {
   return cache;
 }
 export function save() { localStorage.setItem(KEY, JSON.stringify(cache)); }
+/** Re-read localStorage so changes from other tabs (e.g. the admin tab) are visible. */
+export function reload() { cache = null; }
 export function resetMock() { localStorage.removeItem(KEY); cache = null; }
 
 /* ------------------------------------------------------- Demo seed data */

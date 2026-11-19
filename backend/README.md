@@ -55,9 +55,24 @@ python app.py
 ```
 
 For an existing database, rerun `psql "$DATABASE_URL" -f schema.sql` before
-using nutrition endpoints or weight goals. This adds the required tables and columns.
+using nutrition endpoints, weight goals, or study administration. This adds
+the required tables and columns. Promote a trusted registered account to the
+study administrator with:
+
+```sql
+UPDATE users SET role = 'admin' WHERE username = 'your-admin-username';
+```
+
+Only administrator accounts can use the `/api/v1/admin/*` endpoints.
 
 The health endpoint is `http://127.0.0.1:8000/api/v1/health`.
+
+Workout calorie estimates use the standard MET formula:
+`kcal = MET x body weight (kg) x duration (hours)`. The selected workout
+intensity applies a 0.8 (light), 1.0 (medium), or 1.2 (high) modifier. Height
+is not included because the Compendium of Physical Activities MET formula is
+body-weight-based. Estimates require body weight; until one is recorded, the
+backend uses a 70 kg fallback.
 
 ## Deployment
 

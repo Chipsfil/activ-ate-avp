@@ -18,8 +18,7 @@ const val = (v, h) => `${fmt(v, h === 'exercise' ? 0 : 1)} ${UNIT[h]}`;
 /* ----------------------------------------------------------- Network card */
 community.network().then((n) => {
   $('#network-expl').textContent = n.explanation;
-  $('#network-criteria').innerHTML = n.criteria.map((c) => `<span class="chip" style="cursor:default">${esc(c.label)}: ${esc(c.value)}</span>`).join('') +
-    `<span class="chip" style="cursor:default">${n.member_count} members</span>`;
+  $('#network-criteria').innerHTML = `<span class="chip" style="cursor:default">${n.member_count} ${n.member_count === 1 ? 'member' : 'members'}</span>`;
 }).catch(() => {});
 
 /* ----------------------------------------------------------- Leaderboard */
@@ -59,11 +58,15 @@ function render() {
     else cheer = `<span class="small muted" title="Cheering opens once the goal is reached">–</span>`;
     return `<div class="tr${r.is_me ? ' is-me' : ''}">
       <span class="rank">${r.rank}</span>
-      <span class="row" style="gap:10px;flex-wrap:nowrap;min-width:0">
+      <span class="row member-cell">
         <span class="avatar${r.is_me ? ' avatar--me' : ''}" style="width:32px;height:32px;font-size:12px">${esc(r.initials)}</span>
-        ${r.is_me ? '<b>You</b>' : `<a href="member.html?id=${encodeURIComponent(r.member_id)}&habit=${encodeURIComponent(h)}" style="font-weight:600;color:var(--ink)">${esc(r.display_name)}</a>`}
-        ${r.active_today ? '<span class="dot-active" title="Active today"></span>' : ''}
-        ${r.goal_reached ? '<span class="tag tag--brand" title="Goal reached">Goal ✓</span>' : ''}
+        <span class="member-text">
+          <span class="member-line">
+            ${r.is_me ? '<b class="member-name">You</b>' : `<a class="member-name" href="member.html?id=${encodeURIComponent(r.member_id)}&habit=${encodeURIComponent(h)}" title="${esc(r.display_name)}" style="font-weight:600;color:var(--ink)">${esc(r.display_name)}</a>`}
+            ${r.active_today ? '<span class="dot-active" title="Active today"></span>' : ''}
+          </span>
+          ${r.goal_reached ? '<span class="tag tag--brand member-goal" title="Goal reached">Goal ✓</span>' : ''}
+        </span>
       </span>
       <span><div class="track track--thick${r.is_me ? '' : ' track--warm'}" style="max-width:160px"><span style="width:${pct(r.value, r.target)}%"></span></div></span>
       <b>${val(r.value, h)}${state.sort === 'improved' ? ` <span class="small muted">(${r.change_pct > 0 ? '+' : ''}${r.change_pct} %)</span>` : ''}</b>

@@ -14,6 +14,44 @@ CREATE TABLE IF NOT EXISTS users (
   onboarding_step text NOT NULL DEFAULT '2',
   created_at timestamptz NOT NULL DEFAULT now()
 );
+ALTER TABLE users ADD COLUMN IF NOT EXISTS role text NOT NULL DEFAULT 'user';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS participant_no integer;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS community_enabled boolean NOT NULL DEFAULT true;
+CREATE UNIQUE INDEX IF NOT EXISTS users_participant_no_unique
+  ON users(participant_no) WHERE participant_no IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS app_settings (
+  id boolean PRIMARY KEY DEFAULT true CHECK (id),
+  experiment_paused boolean NOT NULL DEFAULT false,
+  community_default boolean NOT NULL DEFAULT true
+);
+INSERT INTO app_settings(id) VALUES(true) ON CONFLICT (id) DO NOTHING;
+
+-- The old networks and network_members tables are removed; networks stores
+-- the directed viewer-to-target relationship directly.
+DROP TABLE IF EXISTS network_members;
+DROP TABLE IF EXISTS networks CASCADE;
+
+CREATE TABLE IF NOT EXISTS networks (
+  viewer_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  target_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY(viewer_id, target_id),
+  CHECK(viewer_id <> target_id)
+);
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema='public' AND table_name='visibility'
+  ) THEN
+    INSERT INTO networks(viewer_id,target_id,created_at)
+      SELECT viewer_id,target_id,created_at FROM visibility
+      ON CONFLICT (viewer_id,target_id) DO NOTHING;
+  END IF;
+END $$;
+DROP TABLE IF EXISTS visibility CASCADE;
+CREATE INDEX IF NOT EXISTS networks_target_idx ON networks(target_id);
 CREATE TABLE IF NOT EXISTS refresh_sessions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(), 
   user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -88,17 +126,6 @@ CREATE TABLE IF NOT EXISTS daily_logs (
   user_id uuid REFERENCES users(id) ON DELETE CASCADE, 
   log_date date NOT NULL,
   water_l numeric(4,1), PRIMARY KEY(user_id, log_date)
-);
-CREATE TABLE IF NOT EXISTS networks (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), 
-  bucket text NOT NULL, criteria jsonb NOT NULL, 
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-CREATE TABLE IF NOT EXISTS network_members (
-  network_id uuid REFERENCES networks(id) ON DELETE CASCADE, 
-  user_id uuid REFERENCES users(id) ON DELETE CASCADE,
-  joined_at timestamptz NOT NULL DEFAULT now(), 
-  left_at timestamptz, PRIMARY KEY(network_id, user_id)
 );
 CREATE TABLE IF NOT EXISTS cheers (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(), 

@@ -5,7 +5,7 @@
  * of what docs/BACKEND.md specifies.
  */
 import { CONFIG } from '../config.js';
-import { db, save, uid, rng, hash, today, addDays, weekStart, daysBetween, round1 } from './mock-db.js';
+import { db, save, reload, uid, rng, hash, today, addDays, weekStart, daysBetween, round1 } from './mock-db.js';
 import { estimateMeal, coachReply } from './mock-ai.js';
 
 /* ================================================================ Router */
@@ -33,11 +33,14 @@ export async function handle(method, fullPath, body, token) {
   const params = {};
   r.keys.forEach((k, i) => { params[k] = decodeURIComponent(m[i + 1]); });
   try {
+    reload();
+    ensureStudyData();
     let user = null;
     if (r.auth) {
       const id = db().tokens[token];
       user = db().users.find((u) => u.id === id);
       if (!user) fail(401, 'unauthorized', 'Your session has expired. Please sign in again.');
+      studyGate(user, path);
     }
     const res = await r.handler({ params, q, body: body || {}, user, token });
     save();
@@ -71,6 +74,9 @@ function publicUser(u) {
     id: u.id, username: u.username, email: u.email, first_name: u.first_name, last_name: u.last_name, initials: initialsOf(u),
     gender: u.gender, date_of_birth: u.date_of_birth, height_cm: u.height_cm, onboarding_step: u.onboarding_step,
     goals: u.goals || [], sports: u.sports || [], network_id: u.network_id, created_at: u.created_at,
+    role: u.is_admin ? 'admin' : 'user',
+    app: u.is_admin ? { paused: false, community_enabled: true }
+      : { paused: !!db().settings?.experiment_paused, community_enabled: communityActive(u) },
   };
 }
 function currentWeight(u) {
@@ -146,41 +152,8 @@ function goalProgress(u) {
   return out;
 }
 
-/* ================================================================ Network (auto-assigned) */
-const NAMES = [['Alex', 'Maxon'], ['Sarah', 'Keller'], ['David', 'Lehmann'], ['Jordan', 'Kunz'], ['Sam', 'Roth'], ['Elena', 'Brunner'], ['Chris', 'Pfister'], ['Mia', 'Tanner'], ['Noah', 'Frei'], ['Lea', 'Huber'], ['Luca', 'Meyer'], ['Nina', 'Graf']];
+/* ================================================================ Community (people the admin lets you see) */
 const GOAL_NAMES = { lose_weight: 'Lose weight', gain_muscle: 'Gain muscle', improve_stamina: 'Improve stamina', general: 'General fitness' };
-const MEMBER_SPORTS = ['Running', 'Weightlifting', 'Cycling', 'Swimming', 'HIIT', 'Yoga', 'Football (soccer)', 'Climbing (indoor)'];
-
-function networkFor(u) {
-  const h = Math.floor(u.height_cm / 10) * 10;
-  const w = Math.floor(currentWeight(u) / 10) * 10;
-  const goal = (u.goals || [])[0] || 'general';
-  const a = Math.floor(age(u) / 10) * 10;
-  const key = `${h}|${w}|${goal}|${a}`;
-  return {
-    id: 'net-' + hash(key).toString(36), key,
-    criteria: [
-      { label: 'Height', value: `${h}–${h + 9} cm` },
-      { label: 'Weight', value: `${w}–${w + 9} kg` },
-      { label: 'Age', value: `${a}–${a + 9} years` },
-      { label: 'Main goal', value: GOAL_NAMES[goal] },
-    ],
-  };
-}
-function membersOf(net) {
-  const r = rng(net.id);
-  const pool = NAMES.slice();
-  const list = [];
-  for (let i = 0; i < 7; i++) {
-    const [first, last] = pool.splice(Math.floor(r() * pool.length), 1)[0];
-    list.push({
-      id: `${net.id}-${i}`, username: `${first.toLowerCase()}_${last.toLowerCase()}`, display_name: `${first.toLowerCase()}_${last.toLowerCase()}`, initials: `${first[0]}${last[0]}`,
-      joined: `2025-${String(1 + Math.floor(r() * 9)).padStart(2, '0')}-01`,
-      sports: [MEMBER_SPORTS[Math.floor(r() * 8)], MEMBER_SPORTS[Math.floor(r() * 8)]].filter((v, j, a) => a.indexOf(v) === j),
-    });
-  }
-  return list;
-}
 const HABITS = {
   exercise: { unit: 'min', label: 'Exercise minutes' },
   water: { unit: 'L', label: 'Water' },
@@ -226,14 +199,9 @@ function cheerCount(memberId, habit) {
   const base = Math.floor(rng(memberId + habit + weekStart(today()))() * 6);
   return base + db().cheers.filter((c) => c.key === cheerKey(memberId, habit)).length;
 }
-function ensureNetwork(u) {
-  if (!u.network_id) u.network_id = networkFor(u).id;
-  return networkFor(u);
-}
 function leaderboard(u, habit) {
-  const net = ensureNetwork(u);
   const me = { member_id: 'me', display_name: 'You', initials: initialsOf(u), is_me: true, ...myStats(u, habit) };
-  const rows = [me, ...membersOf(net).map((m) => ({ member_id: m.id, display_name: m.display_name, initials: m.initials, is_me: false, ...memberStats(m, habit) }))];
+  const rows = [me, ...visibleMembers(u).map((m) => ({ member_id: m.id, display_name: m.display_name, initials: m.initials, is_me: false, ...memberStats(m, habit) }))];
   const key = (r) => r.value;
   rows.sort((a, b) => key(b) - key(a));
   rows.forEach((r, i) => {
@@ -243,14 +211,20 @@ function leaderboard(u, habit) {
     r.cheer_count = cheerCount(r.member_id, habit);
     r.can_cheer = !r.is_me && r.goal_reached && !r.cheered_by_me;
   });
-  return { net, rows, me };
+  return { rows, me };
 }
 
 /* ================================================================ AUTH */
+// The "refresh cookie" is kept per browser tab (sessionStorage) so the admin and a
+// participant can be tested side by side in two tabs of the same browser.
+const REFRESH_KEY = 'activate.mockRefresh';
+const getRefresh = () => { try { return sessionStorage.getItem(REFRESH_KEY); } catch { return null; } };
+const setRefresh = (v) => { try { if (v) sessionStorage.setItem(REFRESH_KEY, v); else sessionStorage.removeItem(REFRESH_KEY); } catch { /* ignore */ } };
+
 function issueToken(u) {
   const token = 'mock.' + uid();
   db().tokens[token] = u.id;
-  db().refresh = u.id;                 // simulates the HttpOnly refresh cookie
+  setRefresh(u.id);                    // simulates the HttpOnly refresh cookie
   return token;
 }
 function validateRegistration(b) {
@@ -270,11 +244,13 @@ function validateRegistration(b) {
 route('GET', '/auth/username-available', ({ q }) => {
   const name = String(q.username || '').toLowerCase();
   if (name.length < 3) return { available: false, reason: 'too_short' };
+  if (name === 'admin') return { available: false, reason: 'reserved' };
   return { available: !db().users.some((u) => u.username.toLowerCase() === name) };
 }, { auth: false });
 
 route('POST', '/auth/register', ({ body }) => {
   validateRegistration(body);
+  if (String(body.username).toLowerCase() === 'admin') fail(409, 'conflict', 'This username is reserved.', 'username');
   if (db().users.some((u) => u.username.toLowerCase() === body.username.toLowerCase())) fail(409, 'conflict', 'This username is already taken.', 'username');
   if (db().users.some((u) => u.email.toLowerCase() === body.email.toLowerCase())) fail(409, 'conflict', 'An account with this email already exists.', 'email');
   const u = {
@@ -285,6 +261,8 @@ route('POST', '/auth/register', ({ body }) => {
   };
   db().users.push(u);
   db().weights.push({ user_id: u.id, weight_kg: Number(body.weight_kg), measured_on: today() });
+  u.community_enabled = db().settings?.community_default !== false;
+  assignNumber(u);
   return withStatus(201, { access_token: issueToken(u), user: publicUser(u) });
 }, { auth: false });
 
@@ -296,14 +274,14 @@ route('POST', '/auth/login', ({ body }) => {
 }, { auth: false });
 
 route('POST', '/auth/refresh', () => {
-  const u = db().users.find((x) => x.id === db().refresh);
+  const u = db().users.find((x) => x.id === getRefresh());
   if (!u) fail(401, 'unauthorized', 'Not signed in.');
   return { access_token: issueToken(u), user: publicUser(u) };
 }, { auth: false });
 
 route('POST', '/auth/logout', ({ token }) => {
   delete db().tokens[token];
-  db().refresh = null;
+  setRefresh(null);
 }, { auth: false });
 
 /* ================================================================ ME / GOALS */
@@ -370,10 +348,9 @@ route('PUT', '/me/targets', async ({ user, body }) => {
 
 route('POST', '/me/onboarding/complete', ({ user }) => {
   if (!user.goals.length) fail(409, 'onboarding_incomplete', 'Please finish the previous steps first.');
-  const net = networkFor(user);
-  user.network_id = net.id;
   user.onboarding_step = 'done';
-  return { network: { id: net.id, member_count: 8, criteria: net.criteria } };
+  // New participants see nobody until the admin connects them.
+  return { network: { id: 'my-network', member_count: visibleMembers(user).length + 1, criteria: [] } };
 });
 
 route('POST', '/goals/check', ({ user, body }) => {
@@ -638,10 +615,10 @@ route('DELETE', '/meals/:id', ({ user, params }) => {
 
 /* ================================================================ COMMUNITY */
 route('GET', '/community/network', ({ user }) => {
-  const net = ensureNetwork(user);
   return {
-    id: net.id, member_count: 8, criteria: net.criteria,
-    explanation: 'You were matched automatically with people of similar height, weight, age and main goal, so comparisons are fair. Your network is updated when your profile changes a lot.',
+    id: 'my-network', member_count: visibleMembers(user).length + 1,
+    criteria: [],
+    explanation: 'For this study you see a selection of other participants. You only see the people shown here.',
     shared_data: ['Exercise minutes', 'Workout type and duration', 'Streaks', 'Water intake'],
   };
 });
@@ -665,8 +642,7 @@ route('GET', '/community/leaderboard', ({ user, q }) => {
 route('GET', '/community/members/:id', ({ user, params, q }) => {
   const habit = HABITS[q.habit] ? q.habit : 'exercise';
   const period = ['week', 'month', 'all'].includes(q.period) ? q.period : 'week';
-  const net = ensureNetwork(user);
-  const m = membersOf(net).find((x) => x.id === params.id);
+  const m = visibleMembers(user).find((x) => x.id === params.id);
   if (!m) fail(404, 'not_found', 'This member is not in your network.');
   const { rows } = leaderboard(user, habit);
   const row = rows.find((r) => r.member_id === m.id);
@@ -792,3 +768,312 @@ route('POST', '/coach/messages', ({ user, body }) => {
   chat.messages.push(msg);
   return { conversation_id: chat.id, message: msg, proposed_sessions: reply.proposed_sessions || [] };
 }, { slow: true });
+
+
+/* ================================================================ STUDY / ADMIN (mock) */
+/*
+ * Mirrors backend/api/admin.py + experiment.py:
+ *  - admin account Admin / Admin, ~20 example participants with IDs (ID 1 … ID N)
+ *  - one big network: db().visibility = [{ viewer, target }] ("viewer sees target")
+ *  - Community = admin switch AND sees at least one person
+ *  - "experiment_paused" and "community_default" settings, two CSV files
+ * Activity numbers of other participants are simulated in the mock.
+ */
+const YES_WORDS = ['yes', 'y', 'ja', 'j', 'true', '1', 'on', 'an', 'x'];
+const NO_WORDS = ['no', 'n', 'nein', 'false', '0', 'off', 'aus'];
+const GOAL_LABEL = { lose_weight: 'Lose weight', gain_muscle: 'Gain muscle', improve_stamina: 'Improve stamina' };
+const GENDERS = ['female', 'male', 'diverse', 'unspecified'];
+const idLabel = (n) => `ID ${n}`;
+const participants = () => db().users.filter((u) => !u.is_admin);
+const byNo = (n) => participants().find((u) => u.participant_no === n);
+
+function assignNumber(u) {
+  if (u.is_admin || u.participant_no) return;
+  const d = db();
+  d.next_participant_no = Math.max(d.next_participant_no || 1, ...participants().map((x) => (x.participant_no || 0) + 1));
+  u.participant_no = d.next_participant_no++;
+}
+function seesIds(u) { return db().visibility.filter((e) => e.viewer === u.id).map((e) => e.target); }
+function visibleMembers(u) {
+  return seesIds(u).map((id) => db().users.find((x) => x.id === id)).filter((t) => t && !t.is_admin).map((t) => ({
+    id: t.id, username: t.username, display_name: t.username, initials: initialsOf(t),
+    joined: (t.created_at || '2026-01-01').slice(0, 10),
+    sports: (t.sports || []).map((x) => x.name).slice(0, 2).concat((t.sports || []).length ? [] : ['Running']),
+  }));
+}
+const communityActive = (u) => u.community_enabled !== false && seesIds(u).length > 0;
+
+function ensureStudyData() {
+  const d = db();
+  if (d.study_version === 2) return;
+  d.visibility = [];
+  if (!d.study_seeded) {
+    d.users.push({
+      id: 'u-admin', username: 'Admin', email: 'admin@admin.activ-ate.local', password: 'Admin', is_admin: true,
+      first_name: 'Admin', last_name: 'Activ-Ate', gender: 'na', date_of_birth: '1970-01-01', height_cm: 170,
+      created_at: new Date().toISOString(), onboarding_step: 'done', goals: [], sports: [], activity_goals: [], nutrition_goals: [],
+    });
+    const first = ['Mia', 'Noah', 'Lea', 'Luca', 'Elena', 'David', 'Sara', 'Jonas', 'Anna', 'Nico', 'Laura', 'Tim', 'Nina', 'Leon',
+      'Julia', 'Samuel', 'Lara', 'Fabio', 'Chiara', 'Marco'];
+    const last = ['Keller', 'Brunner', 'Frei', 'Huber', 'Meier', 'Baumann', 'Weber', 'Schmid', 'Fischer', 'Gerber',
+      'Moser', 'Graf', 'Roth', 'Kunz', 'Steiner', 'Bianchi', 'Suter', 'Widmer', 'Lehmann', 'Bühler'];
+    const goalSets = [['lose_weight'], ['gain_muscle'], ['improve_stamina'], ['gain_muscle', 'improve_stamina'], ['lose_weight', 'improve_stamina']];
+    const sportSets = [['Running'], ['Weightlifting'], ['Cycling', 'Swimming'], ['Yoga'], ['Running', 'Weightlifting'], ['Football'], ['Tennis']];
+    const r = rng('study-seed');
+    first.forEach((f, i) => {
+      const female = i % 2 === 0;
+      const u = {
+        id: `u-p${i + 1}`, username: `${f.toLowerCase()}.${last[i].toLowerCase().replace('ü', 'ue')}`, email: `${f.toLowerCase()}@example.ch`,
+        password: 'demo1234', first_name: f, last_name: last[i], gender: female ? 'female' : 'male',
+        date_of_birth: `${1990 + Math.floor(r() * 12)}-0${1 + Math.floor(r() * 9)}-1${Math.floor(r() * 9)}`,
+        height_cm: Math.round((female ? 160 : 172) + r() * 18), created_at: new Date(Date.now() - (20 - i) * 36e5).toISOString(),
+        onboarding_step: i === 19 ? 3 : 'done', goals: goalSets[i % goalSets.length],
+        sports: sportSets[i % sportSets.length].map((name) => ({ name, sport_id: name.toLowerCase() })),
+        activity_goals: [{ id: uid('ag'), sport: sportSets[i % sportSets.length][0], sport_id: null, minutes_per_session: 30 + 10 * (i % 4), sessions_per_week: 2 + (i % 3) }],
+        nutrition_goals: [{ nutrient: 'protein', amount: 90 + 10 * (i % 6) }], weight_goal: null, network_id: null, community_enabled: true,
+      };
+      d.users.push(u);
+      d.weights.push({ user_id: u.id, weight_kg: Math.round(((female ? 58 : 72) + r() * 22) * 10) / 10, measured_on: today() });
+    });
+  }
+  d.settings = { experiment_paused: false, community_default: true, ...(d.settings || {}) };
+  delete d.settings.community_enabled;
+  delete d.groups;
+  // IDs in order of registration
+  d.users.forEach((u) => { delete u.group_id; delete u.participant_no; });
+  d.next_participant_no = 1;
+  participants().slice().sort((a, b) => String(a.created_at).localeCompare(String(b.created_at))).forEach(assignNumber);
+  // A few example connections so the demo Community is not empty (the real backend starts empty).
+  const pairs = [[1, 2], [1, 3], [1, 4], [1, 5], [2, 3], [3, 2], [3, 1], [4, 1], [5, 6], [6, 5], [7, 8]];
+  pairs.forEach(([v, t]) => { if (byNo(v) && byNo(t)) d.visibility.push({ viewer: byNo(v).id, target: byNo(t).id }); });
+  d.study_seeded = true;
+  d.study_version = 2;
+  save();
+}
+
+function studyGate(user, path) {
+  if (user.is_admin) {
+    if (/^\/(community|feed)/.test(path)) fail(403, 'forbidden', 'The admin account is not part of a network.');
+    return;
+  }
+  if (path.startsWith('/admin/')) fail(403, 'forbidden', 'Admin access only.');
+  const open = path === '/me' || /^\/(auth|me|sports|goals\/check)(\/|$)/.test(path);
+  if (db().settings.experiment_paused && !open) fail(423, 'experiment_paused', 'Activ-Ate has not started yet. Please wait for the start of the study.');
+  if (!communityActive(user) && /^\/(community|feed)/.test(path)) fail(403, 'community_disabled', 'The Community is not available.');
+}
+
+function ageOf(u) {
+  const b = new Date(u.date_of_birth + 'T12:00:00'); const n = new Date();
+  return n.getFullYear() - b.getFullYear() - ((n.getMonth() < b.getMonth() || (n.getMonth() === b.getMonth() && n.getDate() < b.getDate())) ? 1 : 0);
+}
+function participantOut(u) {
+  const no = (id) => db().users.find((x) => x.id === id)?.participant_no;
+  const sees = seesIds(u).map(no).filter(Boolean).sort((a, b) => a - b);
+  const seenBy = db().visibility.filter((e) => e.target === u.id).map((e) => no(e.viewer)).filter(Boolean).sort((a, b) => a - b);
+  return {
+    id: u.id, participant_no: u.participant_no, username: u.username, email: u.email, first_name: u.first_name, last_name: u.last_name,
+    gender: u.gender, date_of_birth: u.date_of_birth, age: ageOf(u), height_cm: u.height_cm, weight_kg: currentWeight(u),
+    goals: (u.goals || []).map((g) => GOAL_LABEL[g] || g), sports: (u.sports || []).map((s) => s.name),
+    activity_goals: (u.activity_goals || []).map((a) => `${a.sport} ${a.minutes_per_session} min x${a.sessions_per_week}/week`),
+    nutrition_goals: (u.nutrition_goals || []).map((n) => `${n.nutrient} ${n.amount}`),
+    weight_goal: u.weight_goal ? `${u.weight_goal.start_kg} -> ${u.weight_goal.target_kg} kg` : '',
+    onboarding_complete: u.onboarding_step === 'done', registered_at: String(u.created_at).slice(0, 19),
+    sees, seen_by: seenBy, community_enabled: u.community_enabled !== false, community_active: u.community_enabled !== false && sees.length > 0,
+  };
+}
+function overview() {
+  const users = participants().slice().sort((a, b) => a.participant_no - b.participant_no).map(participantOut);
+  return { settings: { ...db().settings }, connections: users.reduce((n, u) => n + u.sees.length, 0), users };
+}
+
+route('GET', '/admin/overview', () => overview());
+route('PUT', '/admin/settings', ({ body }) => {
+  ['experiment_paused', 'community_default'].forEach((k) => { if (typeof body[k] === 'boolean') db().settings[k] = body[k]; });
+  return { settings: { ...db().settings } };
+});
+route('PUT', '/admin/users/:id/visibility', ({ params, body }) => {
+  const u = participants().find((x) => x.id === params.id);
+  if (!u) fail(404, 'not_found', 'Participant not found.');
+  if (!Array.isArray(body.sees) || !body.sees.every((n) => Number.isInteger(n))) fail(422, 'validation_error', 'Send sees as a list of participant IDs, e.g. [2, 5].', 'sees');
+  if (body.sees.includes(u.participant_no)) fail(422, 'validation_error', 'A participant cannot see themselves.', 'sees');
+  const unknown = body.sees.filter((n) => !byNo(n));
+  if (unknown.length) fail(422, 'validation_error', `Unknown participant ID(s): ${unknown.map(idLabel).join(', ')}.`, 'sees');
+  db().visibility = db().visibility.filter((e) => e.viewer !== u.id).concat([...new Set(body.sees)].map((n) => ({ viewer: u.id, target: byNo(n).id })));
+  return overview();
+});
+route('PUT', '/admin/users/:id/community', ({ params, body }) => {
+  const u = participants().find((x) => x.id === params.id);
+  if (!u) fail(404, 'not_found', 'Participant not found.');
+  if (typeof body.enabled !== 'boolean') fail(422, 'validation_error', 'Send enabled as true or false.', 'enabled');
+  u.community_enabled = body.enabled;
+  return { user_id: u.id, community_enabled: u.community_enabled };
+});
+route('POST', '/admin/community', ({ body }) => {
+  if (typeof body.enabled !== 'boolean') fail(422, 'validation_error', 'Send enabled as true or false.', 'enabled');
+  const ids = Array.isArray(body.user_ids) ? new Set(body.user_ids) : null;
+  const list = participants().filter((u) => !ids || ids.has(u.id));
+  list.forEach((u) => { u.community_enabled = body.enabled; });
+  return { ...overview(), message: `Community ${body.enabled ? 'allowed' : 'switched off'} for ${list.length} participant(s).` };
+});
+
+/* ---------------------------------------------------------------- CSV */
+function csvCell(v) {
+  if (v == null) return '';
+  if (typeof v === 'boolean') return v ? 'yes' : 'no';
+  let t = Array.isArray(v) ? v.join(' | ') : String(v);
+  if (/^[=+\-@]/.test(t) && Number.isNaN(Number(t))) t = "'" + t;
+  return /[;"\r\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+}
+function parseCsv(text) {
+  text = text.replace(/^﻿/, '');
+  const firstLine = text.split(/\r?\n/)[0] || '';
+  const delim = [';', ',', '\t'].sort((a, b) => firstLine.split(b).length - firstLine.split(a).length)[0];
+  const rows = []; let row = []; let cell = ''; let quoted = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (quoted) {
+      if (c === '"' && text[i + 1] === '"') { cell += '"'; i++; } else if (c === '"') quoted = false; else cell += c;
+    } else if (c === '"') quoted = true;
+    else if (c === delim) { row.push(cell); cell = ''; }
+    else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(cell); rows.push(row); row = []; cell = ''; }
+    else cell += c;
+  }
+  if (cell || row.length) { row.push(cell); rows.push(row); }
+  return rows.map((r) => r.map((c) => c.trim())).filter((r) => r.some((x) => x));
+}
+const parseId = (t) => { const m = String(t || '').trim().replace(/^'/, '').toLowerCase().match(/^(?:id)?\s*[-_#:]?\s*(\d{1,7})$/); return m ? Number(m[1]) : null; };
+const clean = (v) => String(v || '').trim().replace(/^'/, '').replace(/\s+/g, ' ');
+const stamp = () => { const d = new Date(); const z = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}_${z(d.getHours())}${z(d.getMinutes())}`; };
+const P_COLS = ['id', 'username', 'first_name', 'last_name', 'email', 'gender', 'date_of_birth', 'age', 'height_cm', 'weight_kg', 'goals', 'sports',
+  'activity_goals', 'nutrition_goals', 'weight_goal', 'onboarding_complete', 'registered_at', 'sees', 'seen_by', 'community'];
+const EDITABLE = ['first_name', 'last_name', 'email', 'gender', 'date_of_birth', 'height_cm', 'weight_kg', 'community'];
+
+route('GET', '/admin/export/participants', () => {
+  const users = overview().users;
+  const rows = users.map((u) => P_COLS.map((c) => csvCell(
+    c === 'id' ? idLabel(u.participant_no) : c === 'sees' ? u.sees.map(idLabel) : c === 'seen_by' ? u.seen_by.map(idLabel)
+      : c === 'community' ? (u.community_enabled ? 'on' : 'off') : u[c])).join(';'));
+  return { filename: `activ-ate-participants_${stamp()}.csv`, csv: [P_COLS.join(';'), ...rows].join('\r\n') + '\r\n', rows: rows.length };
+});
+
+function parseField(field, raw) {
+  if (field === 'first_name' || field === 'last_name') return raw.length <= 100 ? [raw] : [null, 'is longer than 100 characters'];
+  if (field === 'email') { const v = raw.toLowerCase(); return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v) ? [v] : [null, `'${raw}' is not a valid email address`]; }
+  if (field === 'gender') { const v = raw.toLowerCase(); return GENDERS.includes(v) ? [v] : [null, 'must be female, male, diverse or unspecified']; }
+  if (field === 'date_of_birth') {
+    let m = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/); let iso = m ? raw : null;
+    if (!iso) { m = raw.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/); if (m) iso = `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`; }
+    const d = iso ? new Date(iso + 'T12:00:00') : null;
+    return d && !Number.isNaN(d.getTime()) && iso <= today() && iso >= '1900-01-01' ? [iso] : [null, `'${raw}' is not a valid date (use 1998-03-05 or 05.03.1998)`];
+  }
+  if (field === 'height_cm' || field === 'weight_kg') {
+    const v = Number(raw.replace(',', '.').replace("'", ''));
+    const [lo, hi] = field === 'height_cm' ? [100, 250] : [30, 300];
+    if (Number.isNaN(v)) return [null, `'${raw}' is not a number`];
+    return v >= lo && v <= hi ? [Math.round(v * 10) / 10] : [null, `must be between ${lo} and ${hi}`];
+  }
+  if (field === 'community') { const v = raw.toLowerCase(); if (YES_WORDS.includes(v)) return [true]; if (NO_WORDS.includes(v)) return [false]; return [null, 'must be on or off']; }
+  return [null, 'cannot be changed'];
+}
+
+route('POST', '/admin/import/participants', ({ body }) => {
+  if (typeof body.csv !== 'string' || !body.csv.trim()) fail(422, 'validation_error', 'Please choose a CSV file.', 'csv');
+  const rows = parseCsv(body.csv);
+  if (!rows.length) fail(422, 'validation_error', 'The file is empty.', 'csv');
+  const head = rows[0].map((h) => h.toLowerCase().replace(/\s+/g, '_'));
+  if (!head.includes('id') && !head.includes('username')) fail(422, 'validation_error', "The file needs an 'id' or 'username' column to identify participants.", 'csv');
+  const editable = EDITABLE.filter((f) => head.includes(f));
+  if (!editable.length) fail(422, 'validation_error', `The file has no column that can be changed (${EDITABLE.join(', ')}).`, 'csv');
+  const users = overview().users;
+  const emails = Object.fromEntries(users.map((u) => [u.email.toLowerCase(), u.id]));
+  const errors = []; const changes = []; const seen = new Set(); const newEmails = {};
+  rows.slice(1).forEach((r, i) => {
+    const line = i + 2;
+    const cell = (k) => (head.indexOf(k) >= 0 ? r[head.indexOf(k)] || '' : '');
+    const rawId = cell('id'); const rawName = clean(cell('username')).toLowerCase();
+    const u = rawId ? users.find((x) => x.participant_no === parseId(rawId)) : users.find((x) => x.username.toLowerCase() === rawName);
+    if (!u) { errors.push({ row: line, message: `Unknown participant (${rawId || rawName || 'no id'}).` }); return; }
+    if (seen.has(u.id)) { errors.push({ row: line, message: `${idLabel(u.participant_no)} appears more than once.` }); return; }
+    seen.add(u.id);
+    const fields = {};
+    editable.forEach((f) => {
+      const raw = clean(cell(f));
+      if (!raw) return;
+      const [value, problem] = parseField(f, raw);
+      if (problem) { errors.push({ row: line, message: `${f} ${problem}.` }); return; }
+      if (f === 'email') {
+        const owner = emails[value] || newEmails[value];
+        if (owner && owner !== u.id) { errors.push({ row: line, message: `The email ${value} is already used by another participant.` }); return; }
+        newEmails[value] = u.id;
+      }
+      const current = f === 'community' ? u.community_enabled : u[f];
+      if (value !== current) fields[f] = { from: current, to: value };
+    });
+    if (Object.keys(fields).length) changes.push({ user_id: u.id, participant_no: u.participant_no, name: `${u.first_name} ${u.last_name}`, fields });
+  });
+  const summary = { rows: rows.length - 1, changes, unchanged: seen.size - changes.length, not_in_file: users.length - seen.size, errors, applied: false };
+  if (errors.length) return withStatus(422, { ...summary, error: 'validation_error', message: `${errors.length} problem(s) in the file. Nothing was changed.` });
+  if (body.dry_run !== false) return summary;
+  changes.forEach((c) => {
+    const u = db().users.find((x) => x.id === c.user_id);
+    Object.entries(c.fields).forEach(([f, v]) => {
+      if (f === 'community') u.community_enabled = v.to;
+      else if (f === 'weight_kg') db().weights.push({ user_id: u.id, weight_kg: v.to, measured_on: today() });
+      else u[f] = v.to;
+    });
+  });
+  return { ...summary, applied: true, ...overview() };
+});
+
+route('GET', '/admin/export/network', () => {
+  const users = overview().users;
+  const rows = [];
+  users.forEach((u) => u.sees.forEach((t) => {
+    const tu = users.find((x) => x.participant_no === t);
+    rows.push([idLabel(u.participant_no), idLabel(t), csvCell(`${u.first_name} ${u.last_name}`), csvCell(`${tu.first_name} ${tu.last_name}`)].join(';'));
+  }));
+  return { filename: `activ-ate-network_${stamp()}.csv`, csv: ['viewer_id;sees_id;viewer_name;sees_name', ...rows].join('\r\n') + '\r\n', rows: rows.length };
+});
+
+route('POST', '/admin/import/network', ({ body }) => {
+  if (typeof body.csv !== 'string' || !body.csv.trim()) fail(422, 'validation_error', 'Please choose a CSV file.', 'csv');
+  let rows = parseCsv(body.csv);
+  let vc = 0; let tc = 1; let start = 1;
+  if (rows.length && parseId(rows[0][0]) === null) {
+    const head = rows[0].map((h) => h.toLowerCase().replace(/\s+/g, '_'));
+    const v = ['viewer_id', 'viewer', 'id', 'sieht_wer'].find((h) => head.includes(h)); if (v) vc = head.indexOf(v);
+    const t = ['sees_id', 'sees', 'target_id', 'target', 'sieht'].find((h) => head.includes(h)); if (t) tc = head.indexOf(t);
+    rows = rows.slice(1); start = 2;
+  }
+  const users = overview().users;
+  const nos = new Set(users.map((u) => u.participant_no));
+  const name = (n) => { const u = users.find((x) => x.participant_no === n); return `${u.first_name} ${u.last_name}`; };
+  const errors = []; const warnings = []; const pairs = new Set();
+  rows.forEach((r, i) => {
+    const line = i + start;
+    if (r.length <= Math.max(vc, tc)) { errors.push({ row: line, message: 'Needs two IDs: the person who sees and the person who is seen.' }); return; }
+    const v = parseId(r[vc]); const t = parseId(r[tc]);
+    if (v === null || t === null) { errors.push({ row: line, message: `'${r[vc]}' / '${r[tc]}' are not IDs (use ID 1 or 1).` }); return; }
+    const missing = [v, t].filter((n) => !nos.has(n)).map(idLabel);
+    if (missing.length) { errors.push({ row: line, message: `Unknown participant ${missing.join(', ')}.` }); return; }
+    if (v === t) { errors.push({ row: line, message: `${idLabel(v)} cannot see themselves.` }); return; }
+    const key = `${v}>${t}`;
+    if (pairs.has(key)) warnings.push({ row: line, message: `${idLabel(v)} → ${idLabel(t)} appears twice (counted once).` });
+    pairs.add(key);
+  });
+  const current = new Set(users.flatMap((u) => u.sees.map((t) => `${u.participant_no}>${t}`)));
+  const toPair = (k) => { const [v, t] = k.split('>').map(Number); return { viewer: v, target: t, viewer_name: name(v), target_name: name(t) }; };
+  const sortPairs = (a, b) => a.viewer - b.viewer || a.target - b.target;
+  const added = [...pairs].filter((k) => !current.has(k)).map(toPair).sort(sortPairs);
+  const removed = [...current].filter((k) => !pairs.has(k)).map(toPair).sort(sortPairs);
+  const viewers = new Set([...pairs].map((k) => Number(k.split('>')[0])));
+  const summary = {
+    rows: rows.length, pairs: pairs.size, added, removed, unchanged: [...pairs].filter((k) => current.has(k)).length,
+    mutual: [...pairs].filter((k) => { const [v, t] = k.split('>'); return pairs.has(`${t}>${v}`); }).length / 2,
+    sees_nobody: users.map((u) => u.participant_no).filter((n) => !viewers.has(n)).sort((a, b) => a - b), errors, warnings, applied: false,
+  };
+  if (errors.length) return withStatus(422, { ...summary, error: 'validation_error', message: `${errors.length} row(s) have errors. Nothing was changed.` });
+  if (body.dry_run !== false) return summary;
+  db().visibility = [...pairs].map((k) => { const [v, t] = k.split('>').map(Number); return { viewer: byNo(v).id, target: byNo(t).id }; });
+  return { ...summary, applied: true, ...overview() };
+});

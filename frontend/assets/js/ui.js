@@ -8,7 +8,7 @@ const svg = (d, size = 20, sw = 1.7) =>
   `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 
 export const icons = {
-  logo: `<img class="brand-logo" src="assets/img/logo-mark.svg" alt="" width="40" height="40">`,
+  logo: `<img class="brand-logo" src="assets/img/logo-mark.png" alt="" width="40" height="40">`,
   dashboard: svg('<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>'),
   workouts: svg('<path d="M6 7v10M3 9.5v5M18 7v10M21 9.5v5M6 12h12"/>'),
   nutrition: svg('<path d="M7 2v9a3 3 0 0 0 3 3v8M7 2v6M11 2v6M17 2c-2 2-3 5-3 9h3v11"/>'),
@@ -158,6 +158,17 @@ const NAV = [
 
 const GOAL_LABELS = { lose_weight: 'Lose weight', gain_muscle: 'Gain muscle', improve_stamina: 'Stamina' };
 
+/** Where a signed-in user belongs: admin panel, onboarding, waiting page or the app. */
+export function homeFor(user) {
+  if (!user) return 'signin.html';
+  if (user.role === 'admin') return 'admin.html';
+  if (user.onboarding_step !== 'done') return 'signup.html';
+  if (user.app?.paused) return 'waiting.html';
+  return 'dashboard.html';
+}
+
+export const communityEnabled = (user) => user?.app?.community_enabled !== false;
+
 function renderSidebar(active, user) {
   const host = $('#sidebar');
   if (!host) return;
@@ -170,7 +181,7 @@ function renderSidebar(active, user) {
       <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="nav-main" aria-label="Open menu">${icons.menu}</button>
     </div>
     <nav class="nav" id="nav-main">
-      ${NAV.map((n) => `<a href="${n.href}"${n.id === active ? ' aria-current="page"' : ''}>${n.icon}${n.label}</a>`).join('')}
+      ${NAV.filter((n) => n.id !== 'community' || communityEnabled(user)).map((n) => `<a href="${n.href}"${n.id === active ? ' aria-current="page"' : ''}>${n.icon}${n.label}</a>`).join('')}
     </nav>
     <div class="sidebar-foot">
       <div class="nav"><button type="button" id="logout-btn">${icons.logout}Log out</button></div>
@@ -193,7 +204,8 @@ function renderSidebar(active, user) {
 /**
  * Bootstraps every logged-in page:
  * 1. restores the session (POST /auth/refresh) or redirects to sign-in,
- * 2. redirects to onboarding if it is not finished,
+ * 2. redirects admins to the admin panel, unfinished users to onboarding and
+ *    participants to the waiting page while the study is paused,
  * 3. renders the sidebar.
  * Returns the current user (GET /me shape).
  */
@@ -204,8 +216,11 @@ export async function initPage(active) {
     return new Promise(() => {});
   }
   const user = await meApi.get();
-  if (user.onboarding_step !== 'done') {
-    window.location.replace('signup.html');
+  // Admins use the admin panel; participants wait while the study is paused;
+  // the Community pages are closed when the admin switched the Community off.
+  const home = homeFor(user);
+  if (home !== 'dashboard.html' || (active === 'community' && !communityEnabled(user))) {
+    window.location.replace(home);
     return new Promise(() => {});
   }
   renderSidebar(active, user);
