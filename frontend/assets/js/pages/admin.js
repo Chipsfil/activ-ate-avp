@@ -340,7 +340,7 @@ function list(items, render, max = 200) {
 
 function errorBox(r) {
   return `<div class="form-error"><b>${esc(r.message || 'The file has errors.')}</b>
-    <ul class="small">${r.errors.slice(0, 25).map((x) => `<li>Row ${x.row}: ${esc(x.message)}</li>`).join('')}${r.errors.length > 25 ? `<li>… and ${r.errors.length - 25} more</li>` : ''}</ul></div>`;
+    <ul class="small">${r.errors.slice(0, 25).map((x) => `<li>${typeof x === 'string' ? esc(x) : `Row ${esc(x.row)}: ${esc(x.message)}`}</li>`).join('')}${r.errors.length > 25 ? `<li>… and ${r.errors.length - 25} more</li>` : ''}</ul></div>`;
 }
 
 function previewParticipants(r) {
@@ -407,9 +407,10 @@ $$('[data-preview]').forEach((box) => box.addEventListener('click', async (e) =>
   try {
     const r = await CSV[kind].importFn(state.pending[kind], false);
     state.pending[kind] = null;
-    setData(r);
     renderPreview(kind, r, true);
     toast(`${CSV[kind].label} saved`);
+    try { setData(await admin.overview()); }
+    catch { toast('Changes were saved, but the overview could not be refreshed. Reload the page.', 'error'); }
   } catch (err) {
     setBusy(btn, false);
     if (err.body?.errors) renderPreview(kind, err.body); else toast(err.message, 'error');

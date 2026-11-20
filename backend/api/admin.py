@@ -217,7 +217,7 @@ def export_participants():
     rows = []
     for user in users:
         rows.append({
-            "id": f"ID {user['participant_no']}",
+            "participant_id": user["participant_no"],
             "username": user["username"],
             "first_name": user["first_name"],
             "last_name": user["last_name"],
@@ -227,17 +227,21 @@ def export_participants():
             "height_cm": user["height_cm"],
             "weight_kg": user["weight_kg"] or "",
             "community": "yes" if user["community_enabled"] else "no",
-            "sees": " | ".join(map(str, user["sees"])),
-            "seen_by": " | ".join(map(str, user["seen_by"])),
         })
-    return csv_response("activ-ate-participants.csv", rows, list(rows[0]) if rows else ["id"])
+    return csv_response("activ-ate-participants.csv", rows, list(rows[0]) if rows else ["participant_id"])
 
 
 def parse_csv(text):
     if not isinstance(text, str) or not text.strip():
         return [], ["CSV content is required."]
     try:
-        reader = csv.DictReader(io.StringIO(text), delimiter=";")
+        text = text.lstrip("\ufeff")
+        first_line = text.splitlines()[0]
+        delimiter = "," if "," in first_line and ";" not in first_line else "\t" if "\t" in first_line and ";" not in first_line else ";"
+        reader = csv.DictReader(io.StringIO(text), delimiter=delimiter, restval="")
+        reader.fieldnames = [name.strip() for name in reader.fieldnames or []]
+        if not set(reader.fieldnames) & {"participant_id", "id", "username"}:
+            return [], ["The header must include participant_id, id, or username."]
         return list(reader), []
     except csv.Error as error:
         return [], [f"Invalid CSV: {error}"]
@@ -265,7 +269,7 @@ def import_participants():
     changes = []
     with conn() as connection:
         for index, row in enumerate(rows, 2):
-            user = find_csv_user(connection, row.get("id") or row.get("username"))
+            user = find_csv_user(connection, row.get("participant_id") or row.get("id") or row.get("username"))
             if not user:
                 errors.append(f"Row {index}: participant not found.")
                 continue
@@ -311,7 +315,7 @@ def import_participants():
             if fields:
                 changes.append({"participant_no": user["participant_no"], "name": f"{user['first_name']} {user['last_name']}", "fields": fields, "_user_id": user["id"]})
         if errors:
-            return err("CSV contains errors.", "validation_error", 422)
+            return {"error": "validation_error", "message": "CSV contains errors.", "errors": errors}, 422
         if not dry_run:
             for change in changes:
                 user_id = change.pop("_user_id")
@@ -339,12 +343,11 @@ def import_participants():
 def export_network():
     with conn() as connection:
         rows = connection.execute(
-            "SELECT v.participant_no viewer_id,t.participant_no sees_id,"
-            "v.first_name||' '||v.last_name viewer_name,t.first_name||' '||t.last_name sees_name "
+            "SELECT v.participant_no viewer_id,t.participant_no sees_id "
             "FROM networks x JOIN users v ON v.id=x.viewer_id JOIN users t ON t.id=x.target_id "
             "ORDER BY v.participant_no,t.participant_no"
         ).fetchall()
-    return csv_response("activ-ate-network.csv", [dict(row) for row in rows], ["viewer_id", "sees_id", "viewer_name", "sees_name"])
+    return csv_response("activ-ate-network.csv", [dict(row) for row in rows], ["viewer_id", "sees_id"])
 
 
 def csv_number(value):
@@ -364,6 +367,7 @@ def import_network():
         return err("dry_run must be boolean.", field="dry_run")
     if not isinstance(text, str) or not text.strip():
         return err("CSV content is required.", "validation_error", 422)
+    text = text.lstrip("\ufeff")
     first_line = text.splitlines()[0] if text.splitlines() else ""
     delimiter = ";"
     if "," in first_line and ";" not in first_line:
@@ -386,7 +390,7 @@ def import_network():
                 continue
             viewer, target = csv_number(row[0]), csv_number(row[1])
             if viewer not in known or target not in known:
-                errors.append(f"Row {index}: unknown participant ID.")
+                errors.append(f"Row {index}: viewer and seen IDs must match existing participant numbers.")
             elif viewer == target:
                 errors.append(f"Row {index}: a participant cannot see themselves.")
             else:
