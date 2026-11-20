@@ -20,7 +20,6 @@ const NUT = {
   water: { label: 'Water', unit: 'L', verb: 'Drink', def: 2 },
   carbs: { label: 'Carbohydrates', unit: 'g', verb: 'Eat', def: 280 },
   fat: { label: 'Fat', unit: 'g', verb: 'Eat', def: 70 },
-  fiber: { label: 'Fiber', unit: 'g', verb: 'Eat', def: 30 },
 };
 
 let s = null;          // working copy

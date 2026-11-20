@@ -61,9 +61,7 @@ function seed() {
       { id: 'ag1', sport: 'Weightlifting', sport_id: 'weightlifting', minutes_per_session: 60, sessions_per_week: 4 },
       { id: 'ag2', sport: 'Running', sport_id: 'running', minutes_per_session: 20, sessions_per_week: 3 },
     ],
-    nutrition_goals: [
-      { nutrient: 'calories', amount: 2600 }, { nutrient: 'protein', amount: 140 }, { nutrient: 'water', amount: 2 },
-    ],
+    nutrition_goals: [],
     weight_goal: { start_kg: 62.5, target_kg: 67, target_date: '2027-02-01' },
     network_id: null,
   };

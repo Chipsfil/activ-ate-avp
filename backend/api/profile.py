@@ -9,7 +9,7 @@ from .common import auth_required, body, conn, current_weight, err, user_json
 from .target_history import preserve_baseline, snapshot
 
 bp = Blueprint("profile", __name__)
-NUTRIENT_UNITS = {"calories": "kcal", "protein": "g", "carbs": "g", "fat": "g", "fiber": "g", "water": "L"}
+NUTRIENT_UNITS = {"calories": "kcal", "protein": "g", "carbs": "g", "fat": "g", "water": "L"}
 
 
 def valid_sport_ids(connection, sports):
@@ -260,41 +260,6 @@ def save_targets():
 @auth_required
 def complete():
     with conn() as connection:
-        existing = connection.execute(
-            "SELECT 1 FROM nutrition_goals WHERE user_id=%s LIMIT 1", (g.user_id,)
-        ).fetchone()
-        if not existing:
-            preserve_baseline(connection, g.user_id, "nutrition")
-            user = connection.execute(
-                "SELECT gender,date_of_birth,height_cm FROM users WHERE id=%s",
-                (g.user_id,),
-            ).fetchone()
-            weight = current_weight(connection, g.user_id)
-            today = date.today()
-            age = today.year - user["date_of_birth"].year - (
-                (today.month, today.day)
-                < (user["date_of_birth"].month, user["date_of_birth"].day)
-            )
-            sex_adjustment = {"male": 5, "female": -161}.get(user["gender"], -78)
-            bmr = 10 * weight + 6.25 * float(user["height_cm"]) - 5 * age + sex_adjustment
-            goals = {
-                row["goal"]
-                for row in connection.execute(
-                    "SELECT goal FROM user_goals WHERE user_id=%s", (g.user_id,)
-                )
-            }
-            kcal = round((bmr * 1.55 + (250 if "gain_muscle" in goals else -400 if "lose_weight" in goals else 0)) / 50) * 50
-            protein = round(weight * (1.8 if "gain_muscle" in goals else 1.4))
-            fat = round(kcal * 0.30 / 9)
-            carbs = round(max(0, (kcal - protein * 4 - fat * 9) / 4))
-            with connection.cursor() as cursor:
-                cursor.executemany(
-                    "INSERT INTO nutrition_goals(user_id,nutrient,amount) VALUES(%s,%s,%s)",
-                    [(g.user_id, "calories", kcal), (g.user_id, "protein", protein),
-                     (g.user_id, "fat", fat), (g.user_id, "carbs", carbs),
-                     (g.user_id, "water", 2)],
-                )
-            snapshot(connection, g.user_id, "nutrition", date.today())
         connection.execute(
             "UPDATE users SET onboarding_step='done' WHERE id=%s", (g.user_id,)
         )

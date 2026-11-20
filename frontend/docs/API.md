@@ -90,7 +90,7 @@ Revokes the session, clears the cookie. `204`.
 ## 3. Profile, goals & onboarding
 
 Main goals: `lose_weight | gain_muscle | improve_stamina` (multiple allowed).
-Nutrients: `calories (kcal) | protein (g) | carbs (g) | fat (g) | fiber (g) | water (L)`.
+Nutrients: `calories (kcal) | protein (g) | carbs (g) | fat (g) | water (L)`.
 
 ### `GET /me` → `User`
 

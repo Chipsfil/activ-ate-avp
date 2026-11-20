@@ -23,8 +23,8 @@ const TITLES = {
   2: ['Goals & sports', 'What do you want to achieve, and which sports do you do?'],
   3: ['Targets', 'Turn your goals into concrete weekly targets for training and food.'],
 };
-const UNITS = { protein: 'g', calories: 'kcal', water: 'L', carbs: 'g', fat: 'g', fiber: 'g' };
-const NUT_LABEL = { protein: 'protein', calories: 'calories', water: 'water', carbs: 'carbohydrates', fat: 'fat', fiber: 'fiber' };
+const UNITS = { protein: 'g', calories: 'kcal', water: 'L', carbs: 'g', fat: 'g' };
+const NUT_LABEL = { protein: 'protein', calories: 'calories', water: 'water', carbs: 'carbohydrates', fat: 'fat' };
 
 const state = { step: 1, goals: [], sports: [], acts: [], nuts: [], times: 3 };
 
