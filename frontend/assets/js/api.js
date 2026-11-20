@@ -15,6 +15,7 @@ let accessToken = (() => {
   try { return sessionStorage.getItem('activate.accessToken'); } catch { return null; }
 })();
 let mockModule = null;
+let restorePromise = null;
 
 function clearSession() {
   accessToken = null;
@@ -66,9 +67,11 @@ async function transport(method, path, body) {
 }
 
 async function request(method, path, body, { retryOn401 = true } = {}) {
+  const tokenUsed = accessToken;
   const { status, data } = await transport(method, path, body);
   if (status === 401 && retryOn401 && !path.startsWith('/auth/')) {
-    const ok = await auth.restore();
+    // Another request may already have replaced the token while this one was in flight.
+    const ok = accessToken && accessToken !== tokenUsed ? true : await auth.restore();
     if (ok) return request(method, path, body, { retryOn401: false });
     window.location.href = 'signin.html?expired=1';
     throw new ApiError(401, data);
@@ -116,16 +119,26 @@ export const auth = {
   /** POST /auth/login → { access_token, user } */
   login: async (username, password) => setSession(await post('/auth/login', { username, password })),
   /** POST /auth/refresh (uses HttpOnly cookie) → { access_token, user }. Returns user or null. */
-  restore: async () => {
-    if (accessToken) {
-      const { status, data } = await transport('GET', '/me');
-      if (status === 200) return data;
-      clearSession();
+  restore: () => {
+    if (!restorePromise) {
+      restorePromise = (async () => {
+        if (accessToken) {
+          const { status, data } = await transport('GET', '/me');
+          if (status === 200) return data;
+          if (status !== 401) throw new ApiError(status, data);
+          clearSession();
+        }
+        try {
+          const data = setSession(await request('POST', '/auth/refresh', {}, { retryOn401: false }));
+          return data.user;
+        } catch (error) {
+          if (error.status !== 401) throw error;
+          clearSession();
+          return null;
+        }
+      })().finally(() => { restorePromise = null; });
     }
-    try {
-      const data = setSession(await request('POST', '/auth/refresh', {}, { retryOn401: false }));
-      return data.user;
-    } catch { clearSession(); return null; }
+    return restorePromise;
   },
   logout: async () => { try { await post('/auth/logout'); } finally { clearSession(); } },
   usernameAvailable: (username) => get('/auth/username-available', { username }),
