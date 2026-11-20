@@ -42,9 +42,9 @@ async function refreshWeek() {
   $('#by-sport').innerHTML = '<div class="skeleton" style="height:80px"></div>';
   try {
     const selectedDay = start === weekStart(todayISO()) ? todayISO() : addDaysISO(start, 6);
-    const [stats, items, selected] = await Promise.all([workouts.stats(8), loadWeekWorkouts(start), dashboard.get(selectedDay)]);
+    const [stats, items, selected, targets] = await Promise.all([workouts.stats(8), loadWeekWorkouts(start), dashboard.get(selectedDay), targetsPromise]);
     if (id !== requestId) return;
-    renderStats({ ...stats, week: selected.week, goal_progress: selected.goal_progress }, items);
+    renderStats({ ...stats, week: selected.week, goal_progress: selected.goal_progress }, items, targets);
     renderHistory(items);
   } catch (err) { if (id === requestId) toast(err.message, 'error'); }
 }
@@ -74,7 +74,7 @@ targetsPromise.then((targets) => {
 });
 
 /* ----------------------------------------------------------- Stats */
-function renderStats(s, items) {
+function renderStats(s, items, targets) {
   weekWorkouts = items;
   const done = items.filter((x) => x.status === 'done');
   const weeks = Array.isArray(s.weeks) ? s.weeks : [];

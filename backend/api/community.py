@@ -173,6 +173,63 @@ def _leaderboard(connection, current_user_id, habit="exercise"):
     return start, rows
 
 
+def dashboard_leaderboard(connection, current_user_id):
+    """Load only the exercise leaderboard fields shown on the dashboard."""
+    start = week_start()
+    today = date.today()
+    users = connection.execute(
+        """WITH visible AS (
+               SELECT id FROM users WHERE id=%s OR id IN (
+                   SELECT target_id FROM networks WHERE viewer_id=%s
+               )
+           )
+           SELECT u.id, u.first_name, u.last_name,
+                  COALESCE(w.minutes, 0) minutes,
+                  COALESCE(NULLIF(g.target, 0), 150) target,
+                  COALESCE(c.cheer_count, 0) cheer_count,
+                  COALESCE(c.cheered, false) cheered
+           FROM users u
+           LEFT JOIN (
+               SELECT user_id, SUM(duration_min) minutes FROM workouts
+               WHERE user_id IN (SELECT id FROM visible)
+                 AND status='done' AND performed_on BETWEEN %s AND %s
+               GROUP BY user_id
+           ) w ON w.user_id=u.id
+           LEFT JOIN (
+               SELECT user_id, SUM(minutes_per_session*sessions_per_week) target
+               FROM activity_goals WHERE user_id IN (SELECT id FROM visible)
+               GROUP BY user_id
+           ) g ON g.user_id=u.id
+           LEFT JOIN (
+               SELECT to_user, COUNT(*) cheer_count, BOOL_OR(from_user=%s) cheered
+               FROM cheers WHERE to_user IN (SELECT id FROM visible)
+                 AND habit='exercise' AND week_start=%s GROUP BY to_user
+           ) c ON c.to_user=u.id
+           WHERE u.id IN (SELECT id FROM visible) ORDER BY u.username,u.id""",
+        (current_user_id, current_user_id, start, today, current_user_id, start),
+    ).fetchall()
+    rows = []
+    for user in users:
+        is_me = str(user["id"]) == str(current_user_id)
+        reached = user["minutes"] >= user["target"]
+        cheered = bool(user["cheered"]) if not is_me else False
+        rows.append({
+            "member_id": "me" if is_me else str(user["id"]),
+            "display_name": "You" if is_me else f"{user['first_name']} {user['last_name'][0]}.",
+            "initials": (user["first_name"][0] + user["last_name"][0]).upper(),
+            "is_me": is_me,
+            "value": int(user["minutes"]),
+            "goal_reached": reached,
+            "cheered_by_me": cheered,
+            "cheer_count": int(user["cheer_count"]),
+            "can_cheer": not is_me and reached and not cheered,
+        })
+    rows.sort(key=lambda row: (-row["value"], row["display_name"]))
+    for rank, row in enumerate(rows, 1):
+        row["rank"] = rank
+    return rows
+
+
 @bp.get("/api/v1/community/network")
 @auth_required
 def network():

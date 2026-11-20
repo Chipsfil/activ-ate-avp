@@ -1,5 +1,6 @@
 """Shared helpers for the Activ-Ate API."""
 
+import atexit
 import hashlib
 import secrets
 from datetime import date, datetime, timedelta, timezone
@@ -7,6 +8,7 @@ from functools import wraps
 
 import jwt
 import psycopg
+from psycopg_pool import ConnectionPool
 from flask import g, jsonify, make_response, request
 from config import (
     ACCESS_TOKEN_TTL_MINUTES,
@@ -17,9 +19,19 @@ from config import (
 )
 
 
+pool = ConnectionPool(
+    DATABASE_URL,
+    kwargs={"row_factory": psycopg.rows.dict_row},
+    min_size=1,
+    max_size=10,
+    open=True,
+)
+atexit.register(pool.close)
+
+
 def conn():
-    """Return rows as dictionaries so queries can use column names."""
-    return psycopg.connect(DATABASE_URL, row_factory=psycopg.rows.dict_row)
+    """Borrow a database connection and return it when the block ends."""
+    return pool.connection()
 
 
 def err(message, code="validation_error", status=422, field=None):

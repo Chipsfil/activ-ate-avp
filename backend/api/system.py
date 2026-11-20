@@ -1,6 +1,7 @@
 """Application and database health check."""
 
 import psycopg
+from psycopg_pool import PoolTimeout
 from flask import Blueprint
 
 from .common import conn, err
@@ -16,5 +17,5 @@ def health():
             connection.execute("SELECT 1")
         return {"status": "ok", "database": "ok"}
     # Report HTTP 503 when the database cannot be reached or queried.
-    except psycopg.Error:
+    except (psycopg.Error, PoolTimeout):
         return err("Database unavailable.", "server_error", 503)

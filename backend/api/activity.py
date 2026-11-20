@@ -17,7 +17,7 @@ from .common import (
     week_start,
     weekly_target,
 )
-from .community import _leaderboard
+from .community import dashboard_leaderboard
 from .target_history import goals_on
 from .nutrition import totals as nutrition_totals, targets as nutrition_targets
 
@@ -283,7 +283,7 @@ def dashboard():
                 }
             )
         streak = streak_summary(connection, g.user_id)
-        _, network_rows = _leaderboard(connection, g.user_id, "exercise")
+        network_rows = dashboard_leaderboard(connection, g.user_id)
         network_top = [
             {
                 "member_id": row["member_id"],

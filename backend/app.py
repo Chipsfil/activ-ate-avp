@@ -1,6 +1,7 @@
 """Start the Activ-Ate Flask API."""
 
 import psycopg
+from psycopg_pool import PoolTimeout
 from flask import Flask
 from flask_cors import CORS
 
@@ -44,7 +45,7 @@ def not_found(_):
 @app.errorhandler(Exception)
 def unhandled(error):
     # Return the standard API error for database failures; re-raise other errors.
-    if isinstance(error, psycopg.Error):
+    if isinstance(error, (psycopg.Error, PoolTimeout)):
         return err("Database error.", "server_error", 503)
     raise error
 
