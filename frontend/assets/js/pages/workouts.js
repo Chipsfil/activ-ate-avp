@@ -3,7 +3,7 @@ import { initPage, $, esc, fmt, track, relativeDay, formatDate, todayISO, addDay
 import { mountWorkoutForm } from '../components/workout-form.js';
 
 await initPage('workouts');
-const targets = await meApi.getTargets().catch(() => ({ sports: [] }));
+const targetsPromise = meApi.getTargets().catch(() => ({ sports: [] }));
 
 let filter = '';
 let selectedWeek = weekStart(todayISO());
@@ -61,15 +61,17 @@ async function loadWeekWorkouts(start) {
 }
 let weekWorkouts = [];
 
-mountWorkoutForm($('#form-host'), {
-  sports: targets.sports || [],
-  onSaved: (res) => {
-    toast(`${res.workout.sport} · ${res.workout.duration_min} min saved`);
-    filter = '';
-    refreshWeek(); loadAi();
-  },
+targetsPromise.then((targets) => {
+  mountWorkoutForm($('#form-host'), {
+    sports: targets.sports || [],
+    onSaved: (res) => {
+      toast(`${res.workout.sport} · ${res.workout.duration_min} min saved`);
+      filter = '';
+      refreshWeek(); loadAi();
+    },
+  });
+  if (location.hash === '#log') $('#wf-sport').focus();
 });
-if (location.hash === '#log') $('#wf-sport').focus();
 
 /* ----------------------------------------------------------- Stats */
 function renderStats(s, items) {

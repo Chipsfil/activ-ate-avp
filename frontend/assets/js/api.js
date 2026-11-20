@@ -5,9 +5,9 @@
  * A backend developer implements those endpoints and sets CONFIG.USE_MOCK_API = false.
  *
  * Demo auth model for two-VM HTTP deployments:
- *  - access token (JWT, short-lived) is kept in memory only and sent as "Authorization: Bearer …"
- *  - refresh token is an HttpOnly cookie set by the backend; every page calls auth.restore() on load,
- *    which calls POST /auth/refresh to obtain a fresh access token.
+ *  - access token (JWT, short-lived) is kept in sessionStorage and sent as "Authorization: Bearer …"
+ *  - refresh token is an HttpOnly cookie; auth.restore() checks the access token
+ *    and uses POST /auth/refresh when a fresh token is needed.
  */
 import { CONFIG } from './config.js';
 

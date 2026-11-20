@@ -14,11 +14,11 @@
  *  GET  /admin/export/participants|network   { filename, csv }
  *  POST /admin/import/participants|network   { csv, dry_run } → preview / apply
  */
-import { auth, me, admin } from '../api.js';
+import { auth, admin } from '../api.js';
 import { $, $$, esc, fmt, toast, setBusy, icons, homeFor } from '../ui.js';
 
 /* ------------------------------------------------------------ Guard */
-const user = await auth.restore().then((u) => (u ? me.get() : null)).catch(() => null);
+const user = await auth.restore().catch(() => null);
 if (!user || user.role !== 'admin') {
   location.replace(homeFor(user));
   await new Promise(() => {}); // stop here while the browser navigates away

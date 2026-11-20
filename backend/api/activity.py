@@ -264,18 +264,22 @@ def dashboard():
             (g.user_id,),
         ).fetchall()
         # Build the seven daily chart entries; future days show null rather than zero.
+        daily_minutes = {
+            row["performed_on"]: int(row["minutes"])
+            for row in connection.execute(
+                "SELECT performed_on, sum(duration_min) minutes FROM workouts "
+                "WHERE user_id=%s AND performed_on BETWEEN %s AND %s AND status='done' "
+                "GROUP BY performed_on",
+                (g.user_id, start, start + timedelta(days=6)),
+            )
+        }
         days = []
         for offset in range(7):
             current = start + timedelta(days=offset)
-            total = connection.execute(
-                "SELECT COALESCE(sum(duration_min),0) minutes FROM workouts "
-                "WHERE user_id=%s AND performed_on=%s AND status='done'",
-                (g.user_id, current),
-            ).fetchone()["minutes"]
             days.append(
                 {
                     "date": iso(current),
-                    "minutes": int(total) if current <= date.today() else None,
+                    "minutes": daily_minutes.get(current, 0) if current <= date.today() else None,
                 }
             )
         streak = streak_summary(connection, g.user_id)
@@ -469,16 +473,22 @@ def workout_stats():
         count = 8
     current = week_start()
     with conn() as connection:
+        first_week = current - timedelta(days=(count - 1) * 7)
+        weekly_minutes = {
+            row["week_start"]: int(row["minutes"])
+            for row in connection.execute(
+                "SELECT date_trunc('week', performed_on::timestamp)::date week_start, "
+                "sum(duration_min) minutes FROM workouts "
+                "WHERE user_id=%s AND performed_on BETWEEN %s AND %s AND status='done' "
+                "GROUP BY 1",
+                (g.user_id, first_week, current + timedelta(days=6)),
+            )
+        }
         weeks = []
         # Build the weekly chart from the oldest requested week to the current week.
         for offset in range(count - 1, -1, -1):
             start = current - timedelta(days=offset * 7)
-            total = connection.execute(
-                "SELECT COALESCE(sum(duration_min),0) minutes FROM workouts "
-                "WHERE user_id=%s AND performed_on BETWEEN %s AND %s AND status='done'",
-                (g.user_id, start, start + timedelta(days=6)),
-            ).fetchone()["minutes"]
-            weeks.append({"week_start": iso(start), "minutes": int(total)})
+            weeks.append({"week_start": iso(start), "minutes": weekly_minutes.get(start, 0)})
         # Group completed minutes by sport for the current calendar week.
         by_sport = connection.execute(
             "SELECT sport_name sport,COALESCE(sum(duration_min),0) minutes "

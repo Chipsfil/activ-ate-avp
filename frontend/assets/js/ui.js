@@ -1,7 +1,7 @@
 /**
  * Shared UI helpers: page bootstrap (auth guard + sidebar), toasts, escaping, formatting.
  */
-import { auth, me as meApi } from './api.js';
+import { auth } from './api.js';
 
 /* ----------------------------------------------------------------- Icons */
 const svg = (d, size = 20, sw = 1.7) =>
@@ -203,7 +203,7 @@ function renderSidebar(active, user) {
 
 /**
  * Bootstraps every logged-in page:
- * 1. restores the session (POST /auth/refresh) or redirects to sign-in,
+ * 1. restores the session or redirects to sign-in,
  * 2. redirects admins to the admin panel, unfinished users to onboarding and
  *    participants to the waiting page while the study is paused,
  * 3. renders the sidebar.
@@ -215,7 +215,7 @@ export async function initPage(active) {
     window.location.replace('signin.html');
     return new Promise(() => {});
   }
-  const user = await meApi.get();
+  const user = restored;
   // Admins use the admin panel; participants wait while the study is paused;
   // the Community pages are closed when the admin switched the Community off.
   const home = homeFor(user);

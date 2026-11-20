@@ -135,8 +135,8 @@ checkin.addEventListener('submit', async (e) => {
 
 /* ----------------------------------------------------------- Workout dialog */
 const dialog = $('#workout-dialog');
-const targets = await meApi.getTargets().catch(() => ({ sports: user.sports || [] }));
-const wf = mountWorkoutForm($('#workout-form-host'), {
+const targetsPromise = meApi.getTargets().catch(() => ({ sports: user.sports || [] }));
+const workoutForm = targetsPromise.then((targets) => mountWorkoutForm($('#workout-form-host'), {
   sports: targets.sports || [],
   onCancel: () => dialog.close(),
   onSaved: (res) => {
@@ -144,8 +144,12 @@ const wf = mountWorkoutForm($('#workout-form-host'), {
     toast(`${res.workout.sport} · ${res.workout.duration_min} min saved`);
     load();
   },
+}));
+$('#open-workout').addEventListener('click', async () => {
+  const wf = await workoutForm;
+  dialog.showModal();
+  wf.focus();
 });
-$('#open-workout').addEventListener('click', () => { dialog.showModal(); wf.focus(); });
 $('#close-workout').addEventListener('click', () => dialog.close());
 
 /* ----------------------------------------------------------- Load */
