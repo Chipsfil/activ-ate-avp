@@ -103,15 +103,28 @@ function renderGoals() {
 }
 $$('#goal-cards .goal-card').forEach((c) => c.addEventListener('click', () => {
   const g = c.dataset.goal;
-  state.goals = state.goals.includes(g) ? state.goals.filter((x) => x !== g) : [...state.goals, g];
+  if (g === 'dont_know') {
+    state.goals = state.goals.includes(g) ? [] : ['dont_know'];
+  } else {
+    state.goals = state.goals.includes(g)
+      ? state.goals.filter((x) => x !== g)
+      : [...state.goals.filter((x) => x !== 'dont_know'), g];
+  }
   renderGoals();
 }));
 
 function renderSports() {
+  const unknown = state.sports.some((s) => s.name === "I don't do sports");
+  $('#unknown-sport').setAttribute('aria-pressed', String(unknown));
   $('#sport-chips').innerHTML = state.sports.length
     ? state.sports.map((s, i) => `<span class="chip chip--removable">${esc(s.name)}<button type="button" data-i="${i}" aria-label="Remove ${esc(s.name)}">×</button></span>`).join('')
     : '<span class="small muted">No sports added yet.</span>';
 }
+$('#unknown-sport').addEventListener('click', () => {
+  const unknown = state.sports.some((s) => s.name === "I don't do sports");
+  state.sports = unknown ? [] : [{ name: "I don't do sports", sport_id: null }];
+  renderSports();
+});
 $('#sport-chips').addEventListener('click', (e) => {
   const b = e.target.closest('button[data-i]');
   if (!b) return;
@@ -121,6 +134,7 @@ $('#sport-chips').addEventListener('click', (e) => {
 sportCombobox($('#sport-input'), {
   clearOnSelect: true,
   onSelect: (s) => {
+    state.sports = state.sports.filter((x) => x.name !== "I don't do sports");
     if (!state.sports.some((x) => x.name.toLowerCase() === s.name.toLowerCase())) state.sports.push({ name: s.name, sport_id: s.sport_id });
     renderSports();
   },
@@ -147,7 +161,10 @@ let step3Loaded = false;
 
 async function enterStep3() {
   // Suggest the sports from step 2 as quick picks
-  $('#act-suggest').innerHTML = state.sports.map((s, i) => `<button type="button" class="chip" data-i="${i}">${esc(s.name)}</button>`).join('');
+  $('#act-suggest').innerHTML = state.sports
+    .map((s, i) => s.name === "I don't do sports" ? null : `<button type="button" class="chip" data-i="${i}">${esc(s.name)}</button>`)
+    .filter(Boolean)
+    .join('');
   if (step3Loaded) return;
   step3Loaded = true;
   try {
@@ -225,7 +242,11 @@ $('#back-3').addEventListener('click', () => showStep(2));
 f3.addEventListener('submit', async (e) => {
   e.preventDefault();
   clearErrors(f3);
-  if (!state.acts.length) return showError(f3, { message: 'Please add at least one activity goal.' });
+  const needsActivityGoal = !state.goals.includes('dont_know')
+    && !state.sports.some((sport) => sport.name === "I don't do sports");
+  if (needsActivityGoal && !state.acts.length) {
+    return showError(f3, { message: 'Please add at least one activity goal.' });
+  }
   const btn = f3.querySelector('[type="submit"]');
   setBusy(btn, true, 'Creating your plan…');
   try {

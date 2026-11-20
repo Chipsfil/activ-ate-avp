@@ -12,6 +12,7 @@ const GOALS = [
   { id: 'lose_weight', label: 'Lose weight', desc: 'Calorie deficit + more activity' },
   { id: 'gain_muscle', label: 'Gain muscle', desc: 'Strength training + protein' },
   { id: 'improve_stamina', label: 'Improve stamina', desc: 'Endurance training' },
+  { id: 'dont_know', label: "I don't know", desc: 'Help me find the right direction' },
 ];
 const NUT = {
   calories: { label: 'Calories', unit: 'kcal', verb: 'Eat about', def: 2200 },
@@ -36,6 +37,8 @@ function renderMain() {
       <span class="d">${g.desc}</span></button>`).join('');
 }
 function renderSports() {
+  const unknown = s.sports.some((x) => x.name === "I don't do sports");
+  $('#unknown-sport').setAttribute('aria-pressed', String(unknown));
   $('#sport-chips').innerHTML = s.sports.map((x, i) => `<span class="chip chip--removable">${esc(x.name)}<button type="button" data-rm-sport="${i}" aria-label="Remove ${esc(x.name)}">×</button></span>`).join('') || '<span class="small muted">No sports yet.</span>';
 }
 const freq = (n) => (n === 7 ? 'every day' : `${n} ${n === 1 ? 'time' : 'times'} a week`);
@@ -83,14 +86,26 @@ function renderAll() { renderMain(); renderSports(); renderActs(); renderNuts();
 $('#main-goals').addEventListener('click', (e) => {
   const b = e.target.closest('[data-goal]'); if (!b) return;
   const g = b.dataset.goal;
-  s.goals = s.goals.includes(g) ? s.goals.filter((x) => x !== g) : [...s.goals, g];
+  if (g === 'dont_know') {
+    s.goals = s.goals.includes(g) ? [] : ['dont_know'];
+  } else {
+    s.goals = s.goals.includes(g)
+      ? s.goals.filter((x) => x !== g)
+      : [...s.goals.filter((x) => x !== 'dont_know'), g];
+  }
   renderMain(); markDirty();
 });
 $('#sport-chips').addEventListener('click', (e) => {
   const b = e.target.closest('[data-rm-sport]'); if (!b) return;
   s.sports.splice(Number(b.dataset.rmSport), 1); renderSports(); markDirty();
 });
+$('#unknown-sport').addEventListener('click', () => {
+  const unknown = s.sports.some((x) => x.name === "I don't do sports");
+  s.sports = unknown ? [] : [{ name: "I don't do sports", sport_id: null }];
+  renderSports(); markDirty();
+});
 sportCombobox($('#sport-add'), { clearOnSelect: true, onSelect: (x) => {
+  s.sports = s.sports.filter((y) => y.name !== "I don't do sports");
   if (!s.sports.some((y) => y.name.toLowerCase() === x.name.toLowerCase())) { s.sports.push({ name: x.name, sport_id: x.sport_id }); renderSports(); markDirty(); }
 } });
 $('#acts').addEventListener('click', (e) => {

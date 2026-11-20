@@ -156,7 +156,7 @@ const NAV = [
   { id: 'coach', href: 'coach.html', label: 'AI Coach', icon: icons.coach },
 ];
 
-const GOAL_LABELS = { lose_weight: 'Lose weight', gain_muscle: 'Gain muscle', improve_stamina: 'Stamina' };
+const GOAL_LABELS = { lose_weight: 'Lose weight', gain_muscle: 'Gain muscle', improve_stamina: 'Stamina', dont_know: "I don't know" };
 
 /** Where a signed-in user belongs: admin panel, onboarding, waiting page or the app. */
 export function homeFor(user) {

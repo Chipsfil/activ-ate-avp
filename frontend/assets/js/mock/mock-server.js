@@ -65,7 +65,7 @@ async function sportsList() {
 const sportById = (id) => (SPORTS || []).find((s) => s.id === id);
 const sportByName = (name) => (SPORTS || []).find((s) => s.name.toLowerCase() === String(name).toLowerCase() || (s.aliases || []).includes(String(name).toLowerCase()));
 const INTENSITY = { light: 0.8, medium: 1, high: 1.2 };
-const GOALS = ['lose_weight', 'gain_muscle', 'improve_stamina'];
+const GOALS = ['lose_weight', 'gain_muscle', 'improve_stamina', 'dont_know'];
 const NUTRIENTS = { calories: 'kcal', protein: 'g', carbs: 'g', fat: 'g', fiber: 'g', water: 'L' };
 
 const initialsOf = (u) => ((u.first_name || '')[0] || '').toUpperCase() + ((u.last_name || '')[0] || '').toUpperCase();
@@ -153,7 +153,7 @@ function goalProgress(u) {
 }
 
 /* ================================================================ Community (people the admin lets you see) */
-const GOAL_NAMES = { lose_weight: 'Lose weight', gain_muscle: 'Gain muscle', improve_stamina: 'Improve stamina', general: 'General fitness' };
+const GOAL_NAMES = { lose_weight: 'Lose weight', gain_muscle: 'Gain muscle', improve_stamina: 'Improve stamina', dont_know: "I don't know", general: 'General fitness' };
 const HABITS = {
   exercise: { unit: 'min', label: 'Exercise minutes' },
   water: { unit: 'L', label: 'Water' },
@@ -781,7 +781,7 @@ route('POST', '/coach/messages', ({ user, body }) => {
  */
 const YES_WORDS = ['yes', 'y', 'ja', 'j', 'true', '1', 'on', 'an', 'x'];
 const NO_WORDS = ['no', 'n', 'nein', 'false', '0', 'off', 'aus'];
-const GOAL_LABEL = { lose_weight: 'Lose weight', gain_muscle: 'Gain muscle', improve_stamina: 'Improve stamina' };
+const GOAL_LABEL = { lose_weight: 'Lose weight', gain_muscle: 'Gain muscle', improve_stamina: 'Improve stamina', dont_know: "I don't know" };
 const GENDERS = ['female', 'male', 'diverse', 'unspecified'];
 const idLabel = (n) => `ID ${n}`;
 const participants = () => db().users.filter((u) => !u.is_admin);
