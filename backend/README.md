@@ -39,6 +39,14 @@ DEEPSEEK_API_KEY=your-deepseek-api-key
 DEEPSEEK_MODEL=deepseek-flash
 ```
 
+Or use OpenRouter:
+
+```env
+AI_PROVIDER=openrouter
+OPENROUTER_API_KEY=sk-or-v1-your-openrouter-api-key
+OPENROUTER_MODEL=deepseek/deepseek-chat
+```
+
 Restart the backend after changing these settings. API usage is billed by the
 selected provider. Coach questions, the last 10 conversation messages, and
 your goals, sports, and weekly activity target are sent to that provider.

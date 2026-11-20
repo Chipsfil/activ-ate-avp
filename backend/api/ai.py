@@ -3,7 +3,15 @@
 import json
 
 from openai import APIError, APITimeoutError, OpenAI
-from config import AI_PROVIDER, DEEPSEEK_API_KEY, DEEPSEEK_MODEL, OPENAI_API_KEY, OPENAI_MODEL
+from config import (
+    AI_PROVIDER,
+    DEEPSEEK_API_KEY,
+    DEEPSEEK_MODEL,
+    OPENAI_API_KEY,
+    OPENAI_MODEL,
+    OPENROUTER_API_KEY,
+    OPENROUTER_MODEL,
+)
 
 from .common import user_json, weekly_target
 
@@ -32,22 +40,37 @@ def get_response(messages, json_output=False, timeout=30):
     if AI_PROVIDER == "deepseek":
         api_key = DEEPSEEK_API_KEY
         model = DEEPSEEK_MODEL
+    elif AI_PROVIDER == "openrouter":
+        api_key = OPENROUTER_API_KEY
+        model = OPENROUTER_MODEL
     elif AI_PROVIDER == "openai":
         api_key = OPENAI_API_KEY
         model = OPENAI_MODEL
     else:
-        raise AIError("AI_PROVIDER must be openai or deepseek.")
+        raise AIError("AI_PROVIDER must be openai, deepseek, or openrouter.")
     if not api_key:
         raise AIError("The AI service is not configured.")
 
     # Recommendations need JSON; the coach returns ordinary text.
     response_format = {"type": "json_object" if json_output else "text"}
     try:
-        # Both providers use the OpenAI library, but DeepSeek has its own URL
-        # and uses max_tokens instead of max_completion_tokens.
+        # These providers use OpenAI-compatible APIs.
         if AI_PROVIDER == "deepseek":
             client = OpenAI(
                 api_key=api_key, base_url="https://api.deepseek.com", timeout=timeout, max_retries=0
+            )
+            response = client.chat.completions.create(
+                model=model,
+                messages=messages,
+                max_tokens=700,
+                response_format=response_format,
+            )
+        elif AI_PROVIDER == "openrouter":
+            client = OpenAI(
+                api_key=api_key,
+                base_url="https://openrouter.ai/api/v1",
+                timeout=timeout,
+                max_retries=0,
             )
             response = client.chat.completions.create(
                 model=model,
